@@ -1874,13 +1874,13 @@
     </div>
 
     <div class="form-group">
-      <label>Centro de Costo (ID)</label>
-      <input type="text" id="projectId" placeholder="Ej: 3174" />
+      <label>ID del Proyecto (4 dígitos)</label>
+      <input type="text" id="projectId" placeholder="Ej: 3188" />
     </div>
 
     <div class="form-group">
       <label>Nombre del Proyecto</label>
-      <input type="text" id="projectName" placeholder="Ej: Analisis corridas ili Pdvsa" />
+      <input type="text" id="projectName" placeholder="Ej: TDPE-ET21" />
     </div>
 
     <div class="form-group">
@@ -2029,7 +2029,6 @@
       id: proy.ID || proy.id || '',
       nombre: proy.Nombre || proy.nombre || '',
       cliente: proy.Cliente || proy.cliente || '',
-      centroCosto: proy.CentroCosto || proy.centroCosto || '',
       fases: fasesPorProyecto[proy.ID || proy.id || ''] || []
     })).filter(p => p.id && p.nombre);
   }
@@ -2091,7 +2090,6 @@
         id: "3155",
         nombre: "Am Fitness For Purpose Metrogas Chile",
         cliente: "Safe Pipe",
-        centroCosto: "CC-001",
         fases: [
           { 
             nombre: "Recepción", 
@@ -2116,7 +2114,6 @@
         id: "3174",
         nombre: "Analisis Corridas Ili Pdvsa",
         cliente: "Safe Pipe",
-        centroCosto: "CC-002",
         fases: [
           { 
             nombre: "Recepción", 
@@ -2286,10 +2283,8 @@
   function formatearFechaDDMM(fechaStr) {
     if (!fechaStr) return '';
     
-    // Si es un número (timestamp de Google Sheets)
     if (typeof fechaStr === 'number') {
       try {
-        // Convertir timestamp de Google Sheets a fecha
         const fecha = new Date((fechaStr - 25569) * 86400 * 1000);
         const dia = String(fecha.getDate()).padStart(2, '0');
         const mes = String(fecha.getMonth() + 1).padStart(2, '0');
@@ -2297,7 +2292,6 @@
       } catch (e) {}
     }
     
-    // Si es string con formato ISO (contiene 'T')
     if (typeof fechaStr === 'string') {
       if (fechaStr.includes('T')) {
         try {
@@ -2310,7 +2304,6 @@
         } catch (e) {}
       }
       
-      // Si ya está en formato YYYY-MM-DD
       if (fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
         const partes = fechaStr.split('-');
         return `${partes[2]}/${partes[1]}`;
@@ -2330,7 +2323,7 @@
   let timeoutVerificacionEquipo = null;
 
   // ==============================================================
-  // FUNCIÓN DE ORDENAMIENTO POR CENTRO DE COSTO (ID)
+  // FUNCIÓN DE ORDENAMIENTO POR ID
   // ==============================================================
   function ordenarProyectosPorID() {
     proyectos.sort((a, b) => {
@@ -2788,7 +2781,6 @@
       id: projectId,
       nombre: `${projectId} - ${nombre}`,
       cliente: cliente,
-      centroCosto: `CC-${projectId}`,
       fases: fases
     };
     
@@ -3337,7 +3329,7 @@
       infoDiv.innerHTML = `
         <div class="project-name">${escapeHtml(proyecto.nombre)}</div>
         <div class="project-client">${escapeHtml(proyecto.cliente)}</div>
-        <div class="project-id">${escapeHtml(proyecto.centroCosto || '')}</div>
+        <div class="project-id">ID: ${escapeHtml(proyecto.id)}</div>
       `;
       wrapperDiv.appendChild(infoDiv);
 

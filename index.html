@@ -553,20 +553,13 @@
     }
 
     .project-client {
-      font-size: 0.55rem;
+      font-size: 0.6rem;
       color: #8b9bb5;
       letter-spacing: 0.2px;
       line-height: 1.2;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-    }
-
-    .project-id {
-      font-size: 0.45rem;
-      color: #4a5a7a;
-      font-family: monospace;
-      line-height: 1.2;
     }
 
     .project-actions {
@@ -3311,6 +3304,9 @@
     }
   }
 
+  // ==============================================================
+  // FUNCIÓN RENDERPROJECTS CORREGIDA (FORMATO: ID - NOMBRE / CLIENTE)
+  // ==============================================================
   function renderProjects() {
     const rowsContainer = document.getElementById("rowsContainer");
     if (!rowsContainer) return;
@@ -3326,11 +3322,15 @@
 
       const infoDiv = document.createElement("div");
       infoDiv.className = "project-info";
+      
+      // ==============================================================
+      // FORMATO CORREGIDO: ID - Nombre (arriba) y Cliente (abajo)
+      // ==============================================================
       infoDiv.innerHTML = `
-        <div class="project-name">${escapeHtml(proyecto.nombre)}</div>
+        <div class="project-name">${escapeHtml(proyecto.id)} - ${escapeHtml(proyecto.nombre)}</div>
         <div class="project-client">${escapeHtml(proyecto.cliente)}</div>
-        <div class="project-id">ID: ${escapeHtml(proyecto.id)}</div>
       `;
+      
       wrapperDiv.appendChild(infoDiv);
 
       const actionsDiv = document.createElement("div");

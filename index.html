@@ -3305,7 +3305,7 @@
   }
 
   // ==============================================================
-  // FUNCIÓN RENDERPROJECTS CORREGIDA (FORMATO: ID - NOMBRE / CLIENTE)
+  // FUNCIÓN RENDERPROJECTS CORREGIDA
   // ==============================================================
   function renderProjects() {
     const rowsContainer = document.getElementById("rowsContainer");
@@ -3323,9 +3323,6 @@
       const infoDiv = document.createElement("div");
       infoDiv.className = "project-info";
       
-      // ==============================================================
-      // FORMATO CORREGIDO: ID - Nombre (arriba) y Cliente (abajo)
-      // ==============================================================
       infoDiv.innerHTML = `
         <div class="project-name">${escapeHtml(proyecto.id)} - ${escapeHtml(proyecto.nombre)}</div>
         <div class="project-client">${escapeHtml(proyecto.cliente)}</div>
@@ -3472,20 +3469,35 @@
     }
   }
 
+  // ==============================================================
+  // SINCRONIZACIÓN DE SCROLL - CORREGIDA
+  // ==============================================================
   function syncScroll() {
     const bodyScroll = document.getElementById("bodyScroll");
     const headerScroll = document.getElementById("headerScroll");
     
-    if (bodyScroll && headerScroll) {
-      bodyScroll.addEventListener("scroll", function() {
-        headerScroll.scrollLeft = bodyScroll.scrollLeft;
-        hideResourcesTooltip();
-      });
-      
-      headerScroll.addEventListener("scroll", function() {
-        bodyScroll.scrollLeft = headerScroll.scrollLeft;
-      });
+    if (!bodyScroll || !headerScroll) return;
+    
+    // Función para sincronizar el scroll horizontal
+    function sincronizarBodyScroll() {
+      headerScroll.scrollLeft = bodyScroll.scrollLeft;
+      hideResourcesTooltip();
     }
+    
+    function sincronizarHeaderScroll() {
+      bodyScroll.scrollLeft = headerScroll.scrollLeft;
+    }
+    
+    // Eliminar event listeners anteriores (para evitar duplicados)
+    bodyScroll.removeEventListener("scroll", sincronizarBodyScroll);
+    headerScroll.removeEventListener("scroll", sincronizarHeaderScroll);
+    
+    // Agregar los nuevos event listeners
+    bodyScroll.addEventListener("scroll", sincronizarBodyScroll);
+    headerScroll.addEventListener("scroll", sincronizarHeaderScroll);
+    
+    // Sincronizar inmediatamente al cargar
+    headerScroll.scrollLeft = bodyScroll.scrollLeft;
   }
 
   function scrollToToday() {
@@ -3518,15 +3530,32 @@
     renderAll();
     syncScroll();
     
+    // Forzar sincronización después de un breve retraso
+    setTimeout(() => {
+      const bodyScroll = document.getElementById("bodyScroll");
+      const headerScroll = document.getElementById("headerScroll");
+      if (bodyScroll && headerScroll) {
+        headerScroll.scrollLeft = bodyScroll.scrollLeft;
+      }
+    }, 200);
+    
     setTimeout(() => {
       scrollToToday();
-    }, 150);
+    }, 300);
 
     window.addEventListener('resize', () => {
       const old = document.querySelector(".today-line");
       if (old) old.remove();
       renderTodayLine();
       hideResourcesTooltip();
+      // Re-sincronizar después de redimensionar
+      setTimeout(() => {
+        const bodyScroll = document.getElementById("bodyScroll");
+        const headerScroll = document.getElementById("headerScroll");
+        if (bodyScroll && headerScroll) {
+          headerScroll.scrollLeft = bodyScroll.scrollLeft;
+        }
+      }, 100);
     });
   }
 

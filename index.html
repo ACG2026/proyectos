@@ -1902,32 +1902,25 @@
   const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycby2vMSxAQdLyA6Cx_GHmJn2uG-P53NYkwZ6LaQ8KZ2qpbMEQAXEdYbw0-Sj7_TU-H7-/exec';
   
   // ==============================================================
-  // FUNCIÓN DE CONVERSIÓN DE FECHAS - CORREGIDA Y CON LOGS
+  // CONVERTIR FECHAS - FUNCIONES CORREGIDAS
   // ==============================================================
   function convertirFechaParaInput(fechaStr) {
-    console.log('🔍 convertirFechaParaInput - Entrada:', fechaStr, 'Tipo:', typeof fechaStr);
-    
-    if (!fechaStr) {
-      console.log('⚠️ fechaStr vacío, retornando ""');
-      return '';
-    }
+    if (!fechaStr) return '';
     
     // Si es un string
     if (typeof fechaStr === 'string') {
+      // Limpiar espacios
       fechaStr = fechaStr.trim();
       
-      // Si ya está en formato YYYY-MM-DD
-      if (fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
-        console.log('✅ Ya está en formato YYYY-MM-DD:', fechaStr);
+      // Si ya está EXACTAMENTE en formato YYYY-MM-DD (10 caracteres)
+      if (fechaStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
         return fechaStr;
       }
       
       // Si está en formato DD/MM/YYYY
       if (fechaStr.match(/^\d{2}\/\d{2}\/\d{4}/)) {
         const partes = fechaStr.split('/');
-        const resultado = `${partes[2]}-${partes[1]}-${partes[0]}`;
-        console.log('✅ Convertido de DD/MM/YYYY a YYYY-MM-DD:', resultado);
-        return resultado;
+        return `${partes[2]}-${partes[1]}-${partes[0]}`;
       }
       
       // Si es ISO con T (ej: 2024-03-01T00:00:00.000Z)
@@ -1937,9 +1930,7 @@
           const año = fecha.getFullYear();
           const mes = String(fecha.getMonth() + 1).padStart(2, '0');
           const dia = String(fecha.getDate()).padStart(2, '0');
-          const resultado = `${año}-${mes}-${dia}`;
-          console.log('✅ Convertido de ISO a YYYY-MM-DD:', resultado);
-          return resultado;
+          return `${año}-${mes}-${dia}`;
         }
       }
       
@@ -1949,9 +1940,7 @@
         const año = fecha.getFullYear();
         const mes = String(fecha.getMonth() + 1).padStart(2, '0');
         const dia = String(fecha.getDate()).padStart(2, '0');
-        const resultado = `${año}-${mes}-${dia}`;
-        console.log('✅ Parseado a YYYY-MM-DD:', resultado);
-        return resultado;
+        return `${año}-${mes}-${dia}`;
       }
     }
     
@@ -1962,13 +1951,10 @@
         const año = fecha.getFullYear();
         const mes = String(fecha.getMonth() + 1).padStart(2, '0');
         const dia = String(fecha.getDate()).padStart(2, '0');
-        const resultado = `${año}-${mes}-${dia}`;
-        console.log('✅ Convertido de timestamp a YYYY-MM-DD:', resultado);
-        return resultado;
+        return `${año}-${mes}-${dia}`;
       }
     }
     
-    console.log('❌ No se pudo convertir, retornando original:', fechaStr);
     return fechaStr;
   }
 
@@ -2703,7 +2689,7 @@
   ];
 
   // ==============================================================
-  // MODAL PARA AGREGAR/EDITAR PROYECTO - CORREGIDO
+  // MODAL PARA AGREGAR/EDITAR PROYECTO
   // ==============================================================
   let faseCounter = 0;
   let editingProjectIndex = -1;
@@ -2740,10 +2726,7 @@
     document.getElementById('fasesContainer').innerHTML = '';
     faseCounter = 0;
     
-    console.log('📝 Editando proyecto:', proyecto.id, 'Fases:', proyecto.fases.length);
-    
     proyecto.fases.forEach((fase, idx) => {
-      console.log(`  Fase ${idx+1}:`, fase.nombre, 'Inicio:', fase.inicio, 'Fin:', fase.fin);
       addFaseToModal(fase);
     });
     
@@ -2758,7 +2741,7 @@
   }
 
   // ==============================================================
-  // addFaseToModal - CORREGIDA CON LOGS
+  // addFaseToModal CORREGIDO
   // ==============================================================
   function addFaseToModal(faseData) {
     const container = document.getElementById('fasesContainer');
@@ -2773,15 +2756,8 @@
     ).join('');
     
     // Convertir fechas para los inputs date (formato flexible)
-    let inicioVal = '';
-    let finVal = '';
-    
-    if (faseData) {
-      console.log(`🔍 Procesando fase "${faseData.nombre}" - inicio original:`, faseData.inicio);
-      inicioVal = convertirFechaParaInput(faseData.inicio);
-      finVal = convertirFechaParaInput(faseData.fin);
-      console.log(`✅ Fase "${faseData.nombre}" - inicio convertido:`, inicioVal, 'fin convertido:', finVal);
-    }
+    const inicioVal = faseData ? convertirFechaParaInput(faseData.inicio) : '';
+    const finVal = faseData ? convertirFechaParaInput(faseData.fin) : '';
     
     faseDiv.innerHTML = `
       <div class="fase-header">
@@ -2844,7 +2820,7 @@
   }
 
   // ==============================================================
-  // saveProject - CORREGIDO
+  // saveProject CORREGIDO
   // ==============================================================
   async function saveProject() {
     if (!userCanEdit()) {
@@ -2917,11 +2893,12 @@
     closeProjectModal();
     renderAll();
     
+    // GUARDAR AUTOMÁTICAMENTE EN GOOGLE SHEETS
     await syncWithSheets();
   }
 
   // ==============================================================
-  // deleteProject
+  // deleteProject CORREGIDO
   // ==============================================================
   async function deleteProject(index) {
     if (!userCanEdit()) {
@@ -2940,6 +2917,73 @@
   }
 
   // ==============================================================
+  // saveResource CORREGIDO
+  // ==============================================================
+  async function saveResource() {
+    if (!userCanEdit()) {
+      alert('No tienes permisos para guardar cambios');
+      return;
+    }
+    const nombre = document.getElementById('resNombre').value.trim();
+    const certificacion = document.getElementById('resCertificacion').value.trim();
+    const tecnica = document.getElementById('resTecnica').value.trim();
+    const horas = parseInt(document.getElementById('resHoras').value) || 0;
+    
+    if (!nombre) {
+      alert('El nombre del recurso es obligatorio');
+      return;
+    }
+    
+    if (!currentFase.recursos) {
+      currentFase.recursos = [];
+    }
+    
+    const resourceData = {
+      nombre,
+      certificacion,
+      tecnica,
+      equipos: [...equiposSeleccionados],
+      horas
+    };
+    
+    if (editingResourceId !== null && editingResourceId !== undefined) {
+      const recurso = currentFase.recursos[editingResourceId];
+      recurso.nombre = nombre;
+      recurso.certificacion = certificacion;
+      recurso.tecnica = tecnica;
+      recurso.equipos = [...equiposSeleccionados];
+      recurso.horas = horas;
+    } else {
+      resourceData.id = resourceIdCounter++;
+      currentFase.recursos.push(resourceData);
+    }
+    
+    limpiarCacheEquipos();
+    hideResourceForm();
+    renderResources();
+    saveToLocalStorage();
+    
+    await syncWithSheets();
+  }
+
+  // ==============================================================
+  // deleteResource CORREGIDO
+  // ==============================================================
+  async function deleteResource(index) {
+    if (!userCanEdit()) {
+      alert('No tienes permisos para eliminar recursos');
+      return;
+    }
+    if (!confirm('¿Eliminar este recurso?')) return;
+    currentFase.recursos.splice(index, 1);
+    limpiarCacheEquipos();
+    renderResources();
+    saveToLocalStorage();
+    
+    await syncWithSheets();
+  }
+
+  // ==============================================================
   // GESTIÓN DE RECURSOS (panel editable) - COMPLETA
   // ==============================================================
   let currentProject = null;
@@ -2950,7 +2994,6 @@
   let equiposSeleccionados = [];
 
   function openResourcesPanel(proyecto, fase, faseIndex) {
-    console.log('📂 Abriendo panel de recursos para:', fase.nombre);
     currentProject = proyecto;
     currentFase = fase;
     currentFaseIndex = faseIndex;
@@ -3207,73 +3250,6 @@
     if (btn) btn.style.display = 'block';
     editingResourceId = null;
     equiposSeleccionados = [];
-  }
-
-  // ==============================================================
-  // saveResource - CORREGIDO
-  // ==============================================================
-  async function saveResource() {
-    if (!userCanEdit()) {
-      alert('No tienes permisos para guardar cambios');
-      return;
-    }
-    const nombre = document.getElementById('resNombre').value.trim();
-    const certificacion = document.getElementById('resCertificacion').value.trim();
-    const tecnica = document.getElementById('resTecnica').value.trim();
-    const horas = parseInt(document.getElementById('resHoras').value) || 0;
-    
-    if (!nombre) {
-      alert('El nombre del recurso es obligatorio');
-      return;
-    }
-    
-    if (!currentFase.recursos) {
-      currentFase.recursos = [];
-    }
-    
-    const resourceData = {
-      nombre,
-      certificacion,
-      tecnica,
-      equipos: [...equiposSeleccionados],
-      horas
-    };
-    
-    if (editingResourceId !== null && editingResourceId !== undefined) {
-      const recurso = currentFase.recursos[editingResourceId];
-      recurso.nombre = nombre;
-      recurso.certificacion = certificacion;
-      recurso.tecnica = tecnica;
-      recurso.equipos = [...equiposSeleccionados];
-      recurso.horas = horas;
-    } else {
-      resourceData.id = resourceIdCounter++;
-      currentFase.recursos.push(resourceData);
-    }
-    
-    limpiarCacheEquipos();
-    hideResourceForm();
-    renderResources();
-    saveToLocalStorage();
-    
-    await syncWithSheets();
-  }
-
-  // ==============================================================
-  // deleteResource
-  // ==============================================================
-  async function deleteResource(index) {
-    if (!userCanEdit()) {
-      alert('No tienes permisos para eliminar recursos');
-      return;
-    }
-    if (!confirm('¿Eliminar este recurso?')) return;
-    currentFase.recursos.splice(index, 1);
-    limpiarCacheEquipos();
-    renderResources();
-    saveToLocalStorage();
-    
-    await syncWithSheets();
   }
 
   // ==============================================================

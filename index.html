@@ -1793,6 +1793,7 @@
     </div>
     <div class="admin-buttons" id="adminButtons">
       <button class="btn-admin" onclick="openEquiposModal()">🔧 Equipos</button>
+      <button class="btn-admin" onclick="openPersonalModal()">👷 Personal</button>
     </div>
     <div class="header-actions">
       <button class="btn-sync" id="btnSync" onclick="syncWithSheets()">🔄 Sincronizar</button>
@@ -1859,6 +1860,22 @@
   </div>
 </div>
 
+<!-- MODAL DE PERSONAL -->
+<div class="modal-overlay" id="personalModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>👷 Administración de Personal</h2>
+      <button class="close-btn" onclick="closePersonalModal()">✕</button>
+    </div>
+    <div id="personalList"></div>
+    <div class="add-equipo-form">
+      <input type="text" id="nuevaPersonaNombre" placeholder="Nombre de la persona" />
+      <input type="text" id="nuevaPersonaCertificacion" placeholder="Certificación (opcional)" />
+      <button onclick="agregarPersona()">Agregar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL PARA AGREGAR/EDITAR PROYECTO -->
 <div class="modal-overlay" id="projectModal">
   <div class="modal-content">
@@ -1899,7 +1916,7 @@
   // ==============================================================
   // CONFIGURACIÓN DE GOOGLE SHEETS
   // ==============================================================
-  const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbz48pccOnHafEQh05ZDDFwh_7w-1-8-SLgchQSIsHb_jyRorIBvxIfX_aXr5kKlSe1l/exec';
+  const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycby2vMSxAQdLyA6Cx_GHmJn2uG-P53NYkwZ6LaQ8KZ2qpbMEQAXEdYbw0-Sj7_TU-H7-/exec';
   
   // ==============================================================
   // CONVERTIR FECHAS - FUNCIONES CORREGIDAS
@@ -2046,15 +2063,30 @@
       }));
       
       const fasesData = [];
+      const asignacionesData = [];
       proyectos.forEach(p => {
         p.fases.forEach(f => {
           fasesData.push({
+            FaseID: f.id || '',
             ProyectoID: p.id,
             Fase: f.nombre,
             Inicio: f.inicio,
             Fin: f.fin,
             Color: f.color,
             Avance: f.avance || 0
+          });
+          
+          (f.recursos || []).forEach(r => {
+            asignacionesData.push({
+              FaseID: f.id || '',
+              ProyectoID: p.id,
+              RecursoID: r.id !== undefined && r.id !== null ? r.id : '',
+              Nombre: r.nombre || '',
+              Certificacion: r.certificacion || '',
+              Tecnica: r.tecnica || '',
+              Equipos: (r.equipos || []).join('|'),
+              Horas: r.horas || 0
+            });
           });
         });
       });
@@ -2064,9 +2096,17 @@
         Código: e.codigo || ''
       }));
       
+      const personalData = personalStock.map(p => ({
+        Nombre: p.nombre,
+        Certificacion: p.certificacion || '',
+        Estado: p.estado || 'Activo'
+      }));
+      
       await guardarEnSheets('Proyectos', proyectosData);
       await guardarEnSheets('Fases', fasesData);
       await guardarEnSheets('Equipos', equiposData);
+      await guardarEnSheets('Recursos', personalData);
+      await guardarEnSheets('Asignaciones', asignacionesData);
       
       saveToLocalStorage();
       alert('✅ Datos guardados correctamente en Google Sheets');
@@ -2123,8 +2163,43 @@
     }
   }
 
-  function transformarDatosSheets(proyectosData, fasesData) {
+  function transformarDatosSheets(proyectosData, fasesData, asignacionesData) {
     if (!proyectosData || proyectosData.length === 0) return [];
+    
+    // Agrupar asignaciones (recursos) por FaseID, con fallback por ProyectoID+Fase para datos antiguos
+    const recursosPorFaseId = {};
+    const recursosPorProyectoFase = {};
+    if (asignacionesData && asignacionesData.length > 0) {
+      asignacionesData.forEach(asig => {
+        const faseId = asig.FaseID || asig.faseid || asig.faseId || '';
+        const proyectoId = asig.ProyectoID || asig.proyectoID || asig.ProyectoId || '';
+        const equiposArr = (asig.Equipos || asig.equipos || '')
+          .split('|')
+          .map(x => x.trim())
+          .filter(Boolean);
+        
+        const recurso = {
+          id: (asig.RecursoID || asig.recursoID || asig.recursoId || resourceIdCounter++),
+          nombre: asig.Nombre || asig.nombre || '',
+          certificacion: asig.Certificacion || asig.certificacion || '',
+          tecnica: asig.Tecnica || asig.tecnica || '',
+          equipos: equiposArr,
+          horas: parseInt(asig.Horas || asig.horas || 0) || 0
+        };
+        
+        if (!recurso.nombre) return;
+        
+        if (faseId) {
+          if (!recursosPorFaseId[faseId]) recursosPorFaseId[faseId] = [];
+          recursosPorFaseId[faseId].push(recurso);
+        } else {
+          const fase = asig.Fase || asig.fase || '';
+          const clave = `${proyectoId}||${fase}`;
+          if (!recursosPorProyectoFase[clave]) recursosPorProyectoFase[clave] = [];
+          recursosPorProyectoFase[clave].push(recurso);
+        }
+      });
+    }
     
     const fasesPorProyecto = {};
     if (fasesData && fasesData.length > 0) {
@@ -2133,13 +2208,19 @@
         if (!fasesPorProyecto[proyectoId]) {
           fasesPorProyecto[proyectoId] = [];
         }
+        const faseId = fase.FaseID || fase.faseid || fase.faseId || generarFaseId();
+        const nombreFase = fase.Fase || fase.fase || '';
+        
+        let recursos = recursosPorFaseId[faseId] || recursosPorProyectoFase[`${proyectoId}||${nombreFase}`] || [];
+        
         fasesPorProyecto[proyectoId].push({
-          nombre: fase.Fase || fase.fase || '',
+          id: faseId,
+          nombre: nombreFase,
           inicio: fase.Inicio || fase.inicio || '',
           fin: fase.Fin || fase.fin || '',
           color: fase.Color || fase.color || '#2196F3',
           avance: parseInt(fase.Avance || fase.avance || 0),
-          recursos: []
+          recursos: recursos
         });
       });
     }
@@ -2163,8 +2244,10 @@
       if (!proyectosData.error && proyectosData.data && proyectosData.data.length > 0) {
         const fasesData = await cargarDesdeSheets('Fases');
         const equiposData = await cargarDesdeSheets('Equipos');
+        const personalData = await cargarDesdeSheets('Recursos');
+        const asignacionesData = await cargarDesdeSheets('Asignaciones');
         
-        const nuevosProyectos = transformarDatosSheets(proyectosData.data, fasesData.data);
+        const nuevosProyectos = transformarDatosSheets(proyectosData.data, fasesData.data, asignacionesData.data);
         
         if (nuevosProyectos.length > 0) {
           proyectos = nuevosProyectos;
@@ -2177,6 +2260,17 @@
             guardarEquiposStock();
           }
           
+          if (personalData.data && personalData.data.length > 0) {
+            personalStock = personalData.data.map(p => ({
+              nombre: p.Nombre || p.nombre || '',
+              certificacion: p.Certificacion || p.certificacion || '',
+              estado: p.Estado || p.estado || 'Activo'
+            })).filter(p => p.nombre);
+            guardarPersonalStock();
+          }
+          
+          limpiarCacheEquipos();
+          limpiarCachePersonas();
           ordenarProyectosPorID();
           saveToLocalStorage();
           datosCargados = true;
@@ -2408,6 +2502,11 @@
   let indexEquipos = null;
   let timeoutVerificacionEquipo = null;
 
+  let cacheAsignacionesPersonas = null;
+  let cachePersonasTimestamp = 0;
+  let indexPersonas = null;
+  let timeoutVerificacionPersona = null;
+
   // ==============================================================
   // FUNCIÓN DE ORDENAMIENTO POR ID
   // ==============================================================
@@ -2573,6 +2672,249 @@
   }
 
   // ==============================================================
+  // SISTEMA DE BLOQUEO DE PERSONAS POR FECHAS (mismo patrón que equipos)
+  // ==============================================================
+  function obtenerAsignacionesPersonas() {
+    const ahora = Date.now();
+    
+    if (cacheAsignacionesPersonas && (ahora - cachePersonasTimestamp) < CACHE_DURACION) {
+      return cacheAsignacionesPersonas;
+    }
+    
+    if (!indexPersonas) {
+      construirIndexPersonas();
+    }
+    
+    const asignaciones = {};
+    for (const [nombrePersona, entradas] of indexPersonas) {
+      asignaciones[nombrePersona] = entradas.map(entry => ({
+        proyectoId: entry.proyecto.id,
+        proyectoNombre: entry.proyecto.nombre,
+        faseNombre: entry.fase.nombre,
+        faseId: entry.fase.id,
+        inicio: entry.fase.inicio,
+        fin: entry.fase.fin
+      }));
+    }
+    
+    cacheAsignacionesPersonas = asignaciones;
+    cachePersonasTimestamp = ahora;
+    
+    return asignaciones;
+  }
+
+  function construirIndexPersonas() {
+    const index = new Map();
+    
+    proyectos.forEach(proyecto => {
+      proyecto.fases.forEach(fase => {
+        if (!fase.recursos) return;
+        
+        fase.recursos.forEach(recurso => {
+          if (!recurso.nombre) return;
+          
+          if (!index.has(recurso.nombre)) {
+            index.set(recurso.nombre, []);
+          }
+          index.get(recurso.nombre).push({
+            proyecto: proyecto,
+            fase: fase
+          });
+        });
+      });
+    });
+    
+    indexPersonas = index;
+    return index;
+  }
+
+  function limpiarCachePersonas() {
+    cacheAsignacionesPersonas = null;
+    cachePersonasTimestamp = 0;
+    indexPersonas = null;
+  }
+
+  function verificarDisponibilidadPersona(nombrePersona, fechaInicio, fechaFin, faseActualId) {
+    const asignaciones = obtenerAsignacionesPersonas();
+    
+    if (!asignaciones[nombrePersona]) return null;
+    
+    const fechaInicioDate = new Date(fechaInicio);
+    const fechaFinDate = new Date(fechaFin);
+    
+    for (const asignacion of asignaciones[nombrePersona]) {
+      // Si es la misma fase que estamos editando, no cuenta como conflicto consigo misma
+      if (faseActualId && asignacion.faseId === faseActualId) {
+        continue;
+      }
+      
+      const asigInicio = new Date(asignacion.inicio);
+      const asigFin = new Date(asignacion.fin);
+      
+      if (fechaInicioDate <= asigFin && fechaFinDate >= asigInicio) {
+        return {
+          proyecto: asignacion.proyectoNombre,
+          proyectoId: asignacion.proyectoId,
+          fase: asignacion.faseNombre,
+          inicio: asignacion.inicio,
+          fin: asignacion.fin
+        };
+      }
+    }
+    
+    return null;
+  }
+
+  function getPersonaDisponibilidad(nombrePersona, fechaInicio, fechaFin, faseId) {
+    const conflicto = verificarDisponibilidadPersona(nombrePersona, fechaInicio, fechaFin, faseId);
+    return {
+      disponible: conflicto === null,
+      conflicto: conflicto
+    };
+  }
+
+  function getPersonalActivoConDisponibilidad(fechaInicio, fechaFin, faseId) {
+    return personalStock
+      .filter(p => (p.estado || 'Activo') === 'Activo')
+      .map(persona => {
+        const disponibilidad = getPersonaDisponibilidad(persona.nombre, fechaInicio, fechaFin, faseId);
+        return {
+          ...persona,
+          disponible: disponibilidad.disponible,
+          conflicto: disponibilidad.conflicto
+        };
+      });
+  }
+
+  function getPersonalSelectOptionsConDisponibilidad(selected, fechaInicio, fechaFin, faseId) {
+    let html = '<option value="">Seleccionar persona...</option>';
+    
+    const personalConEstado = getPersonalActivoConDisponibilidad(fechaInicio, fechaFin, faseId);
+    
+    personalConEstado.forEach(p => {
+      const sel = selected === p.nombre ? 'selected' : '';
+      const estado = p.disponible ? '🟢' : '🔴';
+      const label = p.disponible ? p.nombre : `${p.nombre} (Ocupado)`;
+      html += `<option value="${p.nombre}" ${sel} data-disponible="${p.disponible}">${estado} ${label}</option>`;
+    });
+    
+    return html;
+  }
+
+  function mostrarMensajePersonaOcupada(conflicto) {
+    if (!conflicto) return '';
+    
+    const inicio = formatearFechaDDMM(conflicto.inicio);
+    const fin = formatearFechaDDMM(conflicto.fin);
+    
+    return `
+      <div class="equipo-ocupado-msg">
+        ⚠️ Esta persona está ocupada en:<br>
+        <strong>${conflicto.proyecto}</strong> (${conflicto.proyectoId})<br>
+        Fase: <strong>${conflicto.fase}</strong><br>
+        Período: ${inicio} → ${fin}
+      </div>
+    `;
+  }
+
+  // ==============================================================
+  // GESTIÓN DE PERSONAL (módulo tipo Equipos: agregar / caducar)
+  // ==============================================================
+  let personalStock = [];
+
+  function cargarPersonalStock() {
+    try {
+      const data = localStorage.getItem('personalStock');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && parsed.length > 0) {
+          personalStock = parsed;
+        }
+      }
+    } catch (e) {}
+  }
+
+  function guardarPersonalStock() {
+    try {
+      localStorage.setItem('personalStock', JSON.stringify(personalStock));
+    } catch (e) {}
+  }
+
+  function openPersonalModal() {
+    if (!userCanEdit()) {
+      alert('No tienes permisos para administrar personal');
+      return;
+    }
+    document.getElementById('personalModal').classList.add('active');
+    renderPersonalList();
+  }
+
+  function closePersonalModal() {
+    document.getElementById('personalModal').classList.remove('active');
+  }
+
+  function renderPersonalList() {
+    const container = document.getElementById('personalList');
+    if (personalStock.length === 0) {
+      container.innerHTML = '<div class="empty-state"><p>No hay personal registrado</p></div>';
+      return;
+    }
+    let html = '';
+    personalStock.forEach((persona, index) => {
+      const estado = persona.estado || 'Activo';
+      const esActivo = estado === 'Activo';
+      html += `
+        <div class="equipo-list-item">
+          <div class="equipo-info">
+            <span class="equipo-nombre">${escapeHtml(persona.nombre)}</span>
+            <span class="equipo-codigo">${escapeHtml(persona.certificacion || '')} ${esActivo ? '<span style="color:#4CAF50;">● Activo</span>' : '<span style="color:#f44336;">● Caducado</span>'}</span>
+          </div>
+          <div class="equipo-actions">
+            <button onclick="togglePersonaEstado(${index})" class="delete-equipo-btn" title="${esActivo ? 'Caducar' : 'Reactivar'}">${esActivo ? '⏻' : '↺'}</button>
+            <button onclick="eliminarPersona(${index})" class="delete-equipo-btn" title="Eliminar">✕</button>
+          </div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  function agregarPersona() {
+    const nombre = document.getElementById('nuevaPersonaNombre').value.trim();
+    const certificacion = document.getElementById('nuevaPersonaCertificacion').value.trim();
+    
+    if (!nombre) {
+      alert('El nombre de la persona es obligatorio');
+      return;
+    }
+    
+    if (personalStock.some(p => p.nombre === nombre)) {
+      alert('Esta persona ya existe en el registro');
+      return;
+    }
+    
+    personalStock.push({ nombre, certificacion, estado: 'Activo' });
+    guardarPersonalStock();
+    document.getElementById('nuevaPersonaNombre').value = '';
+    document.getElementById('nuevaPersonaCertificacion').value = '';
+    renderPersonalList();
+  }
+
+  function togglePersonaEstado(index) {
+    const persona = personalStock[index];
+    persona.estado = (persona.estado || 'Activo') === 'Activo' ? 'Caducado' : 'Activo';
+    guardarPersonalStock();
+    renderPersonalList();
+  }
+
+  function eliminarPersona(index) {
+    if (!confirm(`¿Eliminar a "${personalStock[index].nombre}" del registro?`)) return;
+    personalStock.splice(index, 1);
+    guardarPersonalStock();
+    renderPersonalList();
+  }
+
+  // ==============================================================
   // GESTIÓN DE EQUIPOS
   // ==============================================================
   function cargarEquiposStock() {
@@ -2673,6 +3015,10 @@
   // ==============================================================
   // DEFINICIONES DE FASES PREDEFINIDAS
   // ==============================================================
+  function generarFaseId() {
+    return 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  }
+
   const faseDefinitions = [
     { nombre: "Recepción", color: "#2196F3" },
     { nombre: "Inspección", color: "#FF9800" },
@@ -2760,6 +3106,7 @@
     const finVal = faseData ? convertirFechaParaInput(faseData.fin) : '';
     
     faseDiv.innerHTML = `
+      <input type="hidden" id="fase-${faseId}-persistid" value="${faseData && faseData.id ? faseData.id : ''}" />
       <div class="fase-header">
         <span class="fase-title">Fase #${faseId}</span>
         <button class="fase-remove" onclick="removeFaseFromModal(${faseId})">✕</button>
@@ -2847,6 +3194,8 @@
       const avance = parseInt(document.getElementById(`fase-${id}-avance`).value) || 0;
       const inicio = document.getElementById(`fase-${id}-inicio`).value;
       const fin = document.getElementById(`fase-${id}-fin`).value;
+      const persistIdEl = document.getElementById(`fase-${id}-persistid`);
+      const persistId = persistIdEl && persistIdEl.value ? persistIdEl.value : generarFaseId();
       
       if (!inicio || !fin) {
         alert(`La fase "${nombreFase}" debe tener fecha de inicio y fin`);
@@ -2854,6 +3203,7 @@
       }
       
       fases.push({
+        id: persistId,
         nombre: nombreFase,
         color: color || '#2196F3',
         avance: avance,
@@ -2870,7 +3220,7 @@
     
     const newProject = {
       id: projectId,
-      nombre: `${projectId} - ${nombre}`,
+      nombre: nombre,
       cliente: cliente,
       fases: fases
     };
@@ -2878,8 +3228,10 @@
     if (editingProjectIndex >= 0) {
       const oldProject = proyectos[editingProjectIndex];
       newProject.fases.forEach((fase, idx) => {
-        if (oldProject.fases[idx] && oldProject.fases[idx].recursos) {
-          fase.recursos = oldProject.fases[idx].recursos;
+        // Emparejar por id persistente de la fase; si no existe (datos antiguos), usar el índice
+        const oldFase = oldProject.fases.find(f => f.id && f.id === fase.id) || oldProject.fases[idx];
+        if (oldFase && oldFase.recursos) {
+          fase.recursos = oldFase.recursos;
         }
       });
       proyectos[editingProjectIndex] = newProject;
@@ -2889,6 +3241,7 @@
     
     ordenarProyectosPorID();
     limpiarCacheEquipos();
+    limpiarCachePersonas();
     saveToLocalStorage();
     closeProjectModal();
     renderAll();
@@ -2910,6 +3263,7 @@
     
     proyectos.splice(index, 1);
     limpiarCacheEquipos();
+    limpiarCachePersonas();
     saveToLocalStorage();
     renderAll();
     
@@ -2930,8 +3284,24 @@
     const horas = parseInt(document.getElementById('resHoras').value) || 0;
     
     if (!nombre) {
-      alert('El nombre del recurso es obligatorio');
+      alert('Selecciona una persona de la lista');
       return;
+    }
+    
+    const disponibilidadPersona = getPersonaDisponibilidad(nombre, currentFase.inicio, currentFase.fin, currentFase.id);
+    if (!disponibilidadPersona.disponible) {
+      const conflicto = disponibilidadPersona.conflicto;
+      const inicioC = formatearFechaDDMM(conflicto.inicio);
+      const finC = formatearFechaDDMM(conflicto.fin);
+      if (!confirm(
+        `⚠️ "${nombre}" está ocupado(a):\n` +
+        `Proyecto: ${conflicto.proyecto}\n` +
+        `Fase: ${conflicto.fase}\n` +
+        `Período: ${inicioC} → ${finC}\n\n` +
+        `¿Deseas asignarlo(a) de todos modos?`
+      )) {
+        return;
+      }
     }
     
     if (!currentFase.recursos) {
@@ -2959,6 +3329,7 @@
     }
     
     limpiarCacheEquipos();
+    limpiarCachePersonas();
     hideResourceForm();
     renderResources();
     saveToLocalStorage();
@@ -2977,6 +3348,7 @@
     if (!confirm('¿Eliminar este recurso?')) return;
     currentFase.recursos.splice(index, 1);
     limpiarCacheEquipos();
+    limpiarCachePersonas();
     renderResources();
     saveToLocalStorage();
     
@@ -3070,8 +3442,14 @@
     
     html += `
       <div class="edit-form" id="resourceForm">
-        <div class="form-row">
-          <input type="text" id="resNombre" placeholder="Nombre del recurso" />
+        <div style="margin-top:4px;">
+          <label style="color:#94a3b8; font-size:0.6rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Persona</label>
+          <div class="form-row">
+            <select id="resNombre" onchange="verificarPersonaSeleccionada()">
+              ${getPersonalSelectOptionsConDisponibilidad('', currentFase.inicio, currentFase.fin, currentFase.id)}
+            </select>
+          </div>
+          <div id="personaDisponibilidadMsg" style="margin-top:4px;"></div>
         </div>
         <div class="form-row">
           <input type="text" id="resCertificacion" placeholder="Certificación" />
@@ -3156,6 +3534,33 @@
     }, 300);
   }
 
+  function verificarPersonaSeleccionada() {
+    if (timeoutVerificacionPersona) {
+      clearTimeout(timeoutVerificacionPersona);
+    }
+    
+    timeoutVerificacionPersona = setTimeout(() => {
+      const select = document.getElementById('resNombre');
+      const persona = select ? select.value : '';
+      const msgContainer = document.getElementById('personaDisponibilidadMsg');
+      
+      if (!persona) {
+        if (msgContainer) msgContainer.innerHTML = '';
+        return;
+      }
+      
+      const disponibilidad = getPersonaDisponibilidad(persona, currentFase.inicio, currentFase.fin, currentFase.id);
+      
+      if (!msgContainer) return;
+      
+      if (disponibilidad.disponible) {
+        msgContainer.innerHTML = `<div class="equipo-status disponible"><span class="status-dot"></span> Persona disponible</div>`;
+      } else {
+        msgContainer.innerHTML = mostrarMensajePersonaOcupada(disponibilidad.conflicto);
+      }
+    }, 300);
+  }
+
   function agregarEquipoSeleccionado() {
     const select = document.getElementById('resEquipoSelect');
     const equipo = select.value;
@@ -3207,12 +3612,13 @@
     const form = document.getElementById('resourceForm');
     if (form) {
       form.classList.add('active');
-      document.getElementById('resNombre').value = '';
+      document.getElementById('resNombre').innerHTML = getPersonalSelectOptionsConDisponibilidad('', currentFase.inicio, currentFase.fin, currentFase.id);
       document.getElementById('resCertificacion').value = '';
       document.getElementById('resTecnica').value = '';
       document.getElementById('resHoras').value = '';
       document.getElementById('resEquipoSelect').value = '';
       document.getElementById('equipoDisponibilidadMsg').innerHTML = '';
+      document.getElementById('personaDisponibilidadMsg').innerHTML = '';
     }
     renderEquiposSeleccionados();
     const btn = document.querySelector('.add-resource-btn');
@@ -3231,12 +3637,13 @@
     const form = document.getElementById('resourceForm');
     if (form) {
       form.classList.add('active');
-      document.getElementById('resNombre').value = recurso.nombre || '';
+      document.getElementById('resNombre').innerHTML = getPersonalSelectOptionsConDisponibilidad(recurso.nombre || '', currentFase.inicio, currentFase.fin, currentFase.id);
       document.getElementById('resCertificacion').value = recurso.certificacion || '';
       document.getElementById('resTecnica').value = recurso.tecnica || '';
       document.getElementById('resHoras').value = recurso.horas || '';
       document.getElementById('resEquipoSelect').value = '';
       document.getElementById('equipoDisponibilidadMsg').innerHTML = '';
+      document.getElementById('personaDisponibilidadMsg').innerHTML = '';
     }
     renderEquiposSeleccionados();
     const btn = document.querySelector('.add-resource-btn');
@@ -3673,6 +4080,7 @@
   }
 
   cargarEquiposStock();
+  cargarPersonalStock();
   loadFromLocalStorage();
   ordenarProyectosPorID();
 
@@ -3709,6 +4117,12 @@
   document.getElementById('equiposModal').addEventListener('click', function(e) {
     if (e.target === this) {
       closeEquiposModal();
+    }
+  });
+
+  document.getElementById('personalModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closePersonalModal();
     }
   });
 

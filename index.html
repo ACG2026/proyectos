@@ -1899,7 +1899,7 @@
   // ==============================================================
   // CONFIGURACIÓN DE GOOGLE SHEETS
   // ==============================================================
-  const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycby2vMSxAQdLyA6Cx_GHmJn2uG-P53NYkwZ6LaQ8KZ2qpbMEQAXEdYbw0-Sj7_TU-H7-/exec';
+  const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbz48pccOnHafEQh05ZDDFwh_7w-1-8-SLgchQSIsHb_jyRorIBvxIfX_aXr5kKlSe1l/exec';
   
   // ==============================================================
   // CONVERTIR FECHAS - FUNCIONES CORREGIDAS
@@ -2087,7 +2087,7 @@
       const url = `${GOOGLE_SHEETS_URL}?action=set&sheet=${encodeURIComponent(nombreHoja)}`;
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ data: datos })
       });
       

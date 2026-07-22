@@ -1902,32 +1902,61 @@
   const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycby2vMSxAQdLyA6Cx_GHmJn2uG-P53NYkwZ6LaQ8KZ2qpbMEQAXEdYbw0-Sj7_TU-H7-/exec';
   
   // ==============================================================
-  // CONVERTIR FECHAS FLEXIBLE
+  // CONVERTIR FECHAS FLEXIBLE - CORREGIDA
   // ==============================================================
   function convertirFechaParaInput(fechaStr) {
     if (!fechaStr) return '';
     
-    // Si ya está en formato YYYY-MM-DD, devolverlo tal cual
-    if (typeof fechaStr === 'string' && fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
-      return fechaStr;
-    }
-    
-    // Si está en formato DD/MM/YYYY, convertirlo a YYYY-MM-DD
-    if (typeof fechaStr === 'string' && fechaStr.match(/^\d{2}\/\d{2}\/\d{4}/)) {
-      const partes = fechaStr.split('/');
-      return `${partes[2]}-${partes[1]}-${partes[0]}`;
-    }
-    
-    // Si es un objeto Date o string ISO
-    try {
-      const fecha = new Date(fechaStr);
-      if (!isNaN(fecha.getTime())) {
-        const año = fecha.getFullYear();
-        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-        const dia = String(fecha.getDate()).padStart(2, '0');
-        return `${año}-${mes}-${dia}`;
+    // Si es un string
+    if (typeof fechaStr === 'string') {
+      // Si ya está en formato YYYY-MM-DD, devolverlo tal cual
+      if (fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+        return fechaStr;
       }
-    } catch (e) {}
+      
+      // Si está en formato DD/MM/YYYY, convertirlo a YYYY-MM-DD
+      if (fechaStr.match(/^\d{2}\/\d{2}\/\d{4}/)) {
+        const partes = fechaStr.split('/');
+        return `${partes[2]}-${partes[1]}-${partes[0]}`;
+      }
+      
+      // Si es ISO con T (ej: 2024-03-01T00:00:00.000Z)
+      if (fechaStr.includes('T')) {
+        try {
+          const fecha = new Date(fechaStr);
+          if (!isNaN(fecha.getTime())) {
+            const año = fecha.getFullYear();
+            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            const dia = String(fecha.getDate()).padStart(2, '0');
+            return `${año}-${mes}-${dia}`;
+          }
+        } catch (e) {}
+      }
+      
+      // Intentar parsear cualquier otra fecha
+      try {
+        const fecha = new Date(fechaStr);
+        if (!isNaN(fecha.getTime())) {
+          const año = fecha.getFullYear();
+          const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+          const dia = String(fecha.getDate()).padStart(2, '0');
+          return `${año}-${mes}-${dia}`;
+        }
+      } catch (e) {}
+    }
+    
+    // Si es un número (timestamp)
+    if (typeof fechaStr === 'number') {
+      try {
+        const fecha = new Date(fechaStr);
+        if (!isNaN(fecha.getTime())) {
+          const año = fecha.getFullYear();
+          const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+          const dia = String(fecha.getDate()).padStart(2, '0');
+          return `${año}-${mes}-${dia}`;
+        }
+      } catch (e) {}
+    }
     
     return fechaStr;
   }
@@ -1935,6 +1964,7 @@
   function formatearFechaDDMM(fechaStr) {
     if (!fechaStr) return '';
     
+    // Si es un número (timestamp de Google Sheets)
     if (typeof fechaStr === 'number') {
       try {
         const fecha = new Date((fechaStr - 25569) * 86400 * 1000);
@@ -1945,6 +1975,7 @@
     }
     
     if (typeof fechaStr === 'string') {
+      // Si es ISO con T
       if (fechaStr.includes('T')) {
         try {
           const fecha = new Date(fechaStr);
@@ -1956,6 +1987,7 @@
         } catch (e) {}
       }
       
+      // Si ya está en formato YYYY-MM-DD
       if (fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
         const partes = fechaStr.split('-');
         return `${partes[2]}/${partes[1]}`;
@@ -3501,33 +3533,38 @@
       return;
     }
     
-    let syncing = false;
+    // Forzar que el header tenga el mismo ancho que el contenido
+    const ganttWrapper = document.getElementById("ganttWrapper");
+    if (ganttWrapper) {
+      const wrapperWidth = ganttWrapper.scrollWidth || ganttWrapper.offsetWidth;
+      const timelineInner = document.getElementById("timelineInner");
+      if (timelineInner) {
+        timelineInner.style.minWidth = Math.max(wrapperWidth, 280 + (DIAS_TOTALES + 1) * ANCHO_DIA) + 'px';
+      }
+    }
     
-    function syncBodyToHeader() {
-      if (syncing) return;
-      syncing = true;
+    // Sincronizar scroll horizontal
+    function sincronizarScroll() {
       headerScroll.scrollLeft = bodyScroll.scrollLeft;
       hideResourcesTooltip();
-      setTimeout(() => { syncing = false; }, 10);
     }
     
-    function syncHeaderToBody() {
-      if (syncing) return;
-      syncing = true;
+    // Eliminar listeners antiguos
+    bodyScroll.removeEventListener('scroll', sincronizarScroll);
+    
+    // Agregar listener
+    bodyScroll.addEventListener('scroll', sincronizarScroll);
+    
+    // Sincronizar también cuando el header haga scroll (por si el usuario arrastra desde ahí)
+    headerScroll.addEventListener('scroll', function() {
       bodyScroll.scrollLeft = headerScroll.scrollLeft;
-      setTimeout(() => { syncing = false; }, 10);
-    }
+    });
     
-    bodyScroll.removeEventListener('scroll', syncBodyToHeader);
-    headerScroll.removeEventListener('scroll', syncHeaderToBody);
-    
-    bodyScroll.addEventListener('scroll', syncBodyToHeader);
-    headerScroll.addEventListener('scroll', syncHeaderToBody);
-    
-    // Sincronizar inmediatamente
-    headerScroll.scrollLeft = bodyScroll.scrollLeft;
-    
-    console.log('✅ Sincronización de scroll activada');
+    // Forzar sincronización inicial
+    setTimeout(() => {
+      headerScroll.scrollLeft = bodyScroll.scrollLeft;
+      console.log('✅ Sincronización de scroll activada');
+    }, 200);
   }
 
   function scrollToToday() {
@@ -3560,14 +3597,15 @@
     renderFixedHeader();
     renderProjects();
     renderTodayLine();
+    
+    // Forzar sincronización después de renderizar
+    setTimeout(() => {
+      syncScroll();
+    }, 300);
   }
 
   function initDashboard() {
     renderAll();
-    
-    setTimeout(() => {
-      syncScroll();
-    }, 300);
     
     setTimeout(() => {
       scrollToToday();

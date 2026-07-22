@@ -1960,6 +1960,11 @@
         const partes = fechaStr.split('-');
         return `${partes[2]}/${partes[1]}`;
       }
+      
+      // Si ya está en DD/MM, devolverlo tal cual
+      if (fechaStr.match(/^\d{2}\/\d{2}/)) {
+        return fechaStr;
+      }
     }
     
     return fechaStr;
@@ -3485,7 +3490,7 @@
   }
 
   // ==============================================================
-  // SINCRONIZACIÓN DE SCROLL
+  // SINCRONIZACIÓN DE SCROLL - CORREGIDA
   // ==============================================================
   function syncScroll() {
     const bodyScroll = document.getElementById("bodyScroll");
@@ -3519,6 +3524,7 @@
     bodyScroll.addEventListener('scroll', syncBodyToHeader);
     headerScroll.addEventListener('scroll', syncHeaderToBody);
     
+    // Sincronizar inmediatamente
     headerScroll.scrollLeft = bodyScroll.scrollLeft;
     
     console.log('✅ Sincronización de scroll activada');

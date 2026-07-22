@@ -1902,6 +1902,79 @@
   const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycby2vMSxAQdLyA6Cx_GHmJn2uG-P53NYkwZ6LaQ8KZ2qpbMEQAXEdYbw0-Sj7_TU-H7-/exec';
   
   // ==============================================================
+  // CONVERTIR FECHAS FLEXIBLE
+  // ==============================================================
+  function convertirFechaParaInput(fechaStr) {
+    if (!fechaStr) return '';
+    
+    // Si ya está en formato YYYY-MM-DD, devolverlo tal cual
+    if (typeof fechaStr === 'string' && fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+      return fechaStr;
+    }
+    
+    // Si está en formato DD/MM/YYYY, convertirlo a YYYY-MM-DD
+    if (typeof fechaStr === 'string' && fechaStr.match(/^\d{2}\/\d{2}\/\d{4}/)) {
+      const partes = fechaStr.split('/');
+      return `${partes[2]}-${partes[1]}-${partes[0]}`;
+    }
+    
+    // Si es un objeto Date o string ISO
+    try {
+      const fecha = new Date(fechaStr);
+      if (!isNaN(fecha.getTime())) {
+        const año = fecha.getFullYear();
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        return `${año}-${mes}-${dia}`;
+      }
+    } catch (e) {}
+    
+    return fechaStr;
+  }
+
+  function formatearFechaDDMM(fechaStr) {
+    if (!fechaStr) return '';
+    
+    if (typeof fechaStr === 'number') {
+      try {
+        const fecha = new Date((fechaStr - 25569) * 86400 * 1000);
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        return `${dia}/${mes}`;
+      } catch (e) {}
+    }
+    
+    if (typeof fechaStr === 'string') {
+      if (fechaStr.includes('T')) {
+        try {
+          const fecha = new Date(fechaStr);
+          if (!isNaN(fecha.getTime())) {
+            const dia = String(fecha.getDate()).padStart(2, '0');
+            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            return `${dia}/${mes}`;
+          }
+        } catch (e) {}
+      }
+      
+      if (fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const partes = fechaStr.split('-');
+        return `${partes[2]}/${partes[1]}`;
+      }
+    }
+    
+    return fechaStr;
+  }
+
+  // ==============================================================
+  // CERRAR SESIÓN AL CERRAR LA PÁGINA
+  // ==============================================================
+  window.addEventListener('beforeunload', function() {
+    localStorage.removeItem('userSession');
+    currentUser = null;
+    selectedProfile = null;
+  });
+
+  // ==============================================================
   // ESTADO DE SINCRONIZACIÓN
   // ==============================================================
   let sincronizando = false;
@@ -1932,39 +2005,43 @@
     try {
       mostrarLoading('Sincronizando con Google Sheets...');
       
-      const proyectosData = await cargarDesdeSheets('Proyectos');
-      const fasesData = await cargarDesdeSheets('Fases');
-      const equiposData = await cargarDesdeSheets('Equipos');
+      // Preparar datos para Sheets
+      const proyectosData = proyectos.map(p => ({
+        ID: p.id,
+        Nombre: p.nombre,
+        Cliente: p.cliente
+      }));
       
-      if (proyectosData.error) {
-        alert('Error al cargar datos: ' + proyectosData.error);
-        return;
-      }
+      // Preparar fases
+      const fasesData = [];
+      proyectos.forEach(p => {
+        p.fases.forEach(f => {
+          fasesData.push({
+            ProyectoID: p.id,
+            Fase: f.nombre,
+            Inicio: f.inicio,
+            Fin: f.fin,
+            Color: f.color,
+            Avance: f.avance || 0
+          });
+        });
+      });
       
-      // REEMPLAZAR datos en lugar de agregar
-      const nuevosProyectos = transformarDatosSheets(proyectosData.data, fasesData.data);
+      // Preparar equipos
+      const equiposData = equiposStock.map(e => ({
+        Nombre: e.nombre,
+        Código: e.codigo || ''
+      }));
       
-      if (nuevosProyectos.length === 0) {
-        alert('No se encontraron datos en Google Sheets. Asegúrate de que las pestañas tengan datos.');
-        return;
-      }
+      // Guardar en Sheets
+      await guardarEnSheets('Proyectos', proyectosData);
+      await guardarEnSheets('Fases', fasesData);
+      await guardarEnSheets('Equipos', equiposData);
       
-      proyectos = nuevosProyectos;
-      
-      if (equiposData.data && equiposData.data.length > 0) {
-        equiposStock = equiposData.data.map(e => ({
-          nombre: e.Nombre || e.nombre || '',
-          codigo: e.Código || e.codigo || ''
-        })).filter(e => e.nombre);
-        guardarEquiposStock();
-      }
-      
-      ordenarProyectosPorID();
+      // También guardar localmente
       saveToLocalStorage();
-      limpiarCacheEquipos();
-      renderAll();
       
-      alert('✅ Datos sincronizados correctamente desde Google Sheets');
+      alert('✅ Datos guardados correctamente en Google Sheets');
       
     } catch (error) {
       console.error('Error en sincronización:', error);
@@ -1977,6 +2054,37 @@
     }
   }
 
+  async function guardarEnSheets(nombreHoja, datos) {
+    try {
+      const url = `${GOOGLE_SHEETS_URL}?action=set&sheet=${encodeURIComponent(nombreHoja)}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ data: datos })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error(`Error guardando ${nombreHoja}:`, error);
+      throw error;
+    }
+  }
+
+  // ==============================================================
+  // FUNCIONES DE CARGA DE DATOS
+  // ==============================================================
   async function cargarDesdeSheets(nombreHoja) {
     try {
       const url = `${GOOGLE_SHEETS_URL}?action=get&sheet=${encodeURIComponent(nombreHoja)}`;
@@ -2028,9 +2136,6 @@
     })).filter(p => p.id && p.nombre);
   }
 
-  // ==============================================================
-  // CARGAR DATOS DESPUÉS DEL LOGIN
-  // ==============================================================
   async function cargarDatosDespuesLogin() {
     if (datosCargados) return;
     
@@ -2074,7 +2179,6 @@
       }
     } finally {
       renderAll();
-      // Forzar sincronización después de cargar
       setTimeout(() => {
         syncScroll();
       }, 400);
@@ -2084,6 +2188,11 @@
       ocultarLoading();
     }
   }
+
+  // ==============================================================
+  // DATOS DE PROYECTOS CON RECURSOS
+  // ==============================================================
+  let proyectos = [];
 
   function cargarDatosEjemplo() {
     proyectos = [
@@ -2276,59 +2385,6 @@
       }
     } catch (e) {}
     return false;
-  }
-
-  // ==============================================================
-  // FUNCIÓN DE FORMATO DE FECHAS CORREGIDA
-  // ==============================================================
-  function formatearFechaDDMM(fechaStr) {
-    if (!fechaStr) return '';
-    
-    if (typeof fechaStr === 'number') {
-      try {
-        const fecha = new Date((fechaStr - 25569) * 86400 * 1000);
-        const dia = String(fecha.getDate()).padStart(2, '0');
-        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-        return `${dia}/${mes}`;
-      } catch (e) {}
-    }
-    
-    if (typeof fechaStr === 'string') {
-      if (fechaStr.includes('T')) {
-        try {
-          const fecha = new Date(fechaStr);
-          if (!isNaN(fecha.getTime())) {
-            const dia = String(fecha.getDate()).padStart(2, '0');
-            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-            return `${dia}/${mes}`;
-          }
-        } catch (e) {}
-      }
-      
-      if (fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
-        const partes = fechaStr.split('-');
-        return `${partes[2]}/${partes[1]}`;
-      }
-    }
-    
-    return fechaStr;
-  }
-
-  // ==============================================================
-  // FUNCIÓN PARA CONVERTIR FECHA ISO A YYYY-MM-DD (para inputs date)
-  // ==============================================================
-  function fechaISOtoYYYYMMDD(fechaStr) {
-    if (!fechaStr) return '';
-    try {
-      const fecha = new Date(fechaStr);
-      if (!isNaN(fecha.getTime())) {
-        const año = fecha.getFullYear();
-        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-        const dia = String(fecha.getDate()).padStart(2, '0');
-        return `${año}-${mes}-${dia}`;
-      }
-    } catch (e) {}
-    return fechaStr;
   }
 
   // ==============================================================
@@ -2603,11 +2659,6 @@
   }
 
   // ==============================================================
-  // DATOS DE PROYECTOS CON RECURSOS
-  // ==============================================================
-  let proyectos = [];
-
-  // ==============================================================
   // DEFINICIONES DE FASES PREDEFINIDAS
   // ==============================================================
   const faseDefinitions = [
@@ -2677,6 +2728,9 @@
     editingProjectIndex = -1;
   }
 
+  // ==============================================================
+  // addFaseToModal CORREGIDO (con fechas flexibles)
+  // ==============================================================
   function addFaseToModal(faseData) {
     const container = document.getElementById('fasesContainer');
     const faseId = ++faseCounter;
@@ -2689,9 +2743,9 @@
       `<option value="${f.nombre}" data-color="${f.color}" ${faseData && f.nombre === faseData.nombre ? 'selected' : ''}>${f.nombre}</option>`
     ).join('');
     
-    // Convertir fechas para los inputs date
-    const inicioVal = faseData ? fechaISOtoYYYYMMDD(faseData.inicio) : '';
-    const finVal = faseData ? fechaISOtoYYYYMMDD(faseData.fin) : '';
+    // Convertir fechas para los inputs date (formato flexible)
+    const inicioVal = faseData ? convertirFechaParaInput(faseData.inicio) : '';
+    const finVal = faseData ? convertirFechaParaInput(faseData.fin) : '';
     
     faseDiv.innerHTML = `
       <div class="fase-header">
@@ -2717,11 +2771,11 @@
         </div>
         <div class="form-group">
           <label>Fecha Inicio</label>
-          <input type="date" id="fase-${faseId}-inicio" value="${inicioVal}" />
+          <input type="date" id="fase-${faseId}-inicio" value="${inicioVal}" placeholder="DD/MM/YYYY" />
         </div>
         <div class="form-group">
           <label>Fecha Fin</label>
-          <input type="date" id="fase-${faseId}-fin" value="${finVal}" />
+          <input type="date" id="fase-${faseId}-fin" value="${finVal}" placeholder="DD/MM/YYYY" />
         </div>
       </div>
     `;
@@ -2753,7 +2807,10 @@
     }
   }
 
-  function saveProject() {
+  // ==============================================================
+  // saveProject CORREGIDO (con sincronización automática)
+  // ==============================================================
+  async function saveProject() {
     if (!userCanEdit()) {
       alert('No tienes permisos para guardar cambios');
       return;
@@ -2823,12 +2880,17 @@
     saveToLocalStorage();
     closeProjectModal();
     renderAll();
+    
+    // ==============================================================
+    // GUARDAR AUTOMÁTICAMENTE EN GOOGLE SHEETS
+    // ==============================================================
+    await syncWithSheets();
   }
 
   // ==============================================================
-  // ELIMINAR PROYECTO
+  // deleteProject CORREGIDO (con sincronización automática)
   // ==============================================================
-  function deleteProject(index) {
+  async function deleteProject(index) {
     if (!userCanEdit()) {
       alert('No tienes permisos para eliminar proyectos');
       return;
@@ -2840,74 +2902,84 @@
     limpiarCacheEquipos();
     saveToLocalStorage();
     renderAll();
+    
+    // ==============================================================
+    // GUARDAR AUTOMÁTICAMENTE EN GOOGLE SHEETS
+    // ==============================================================
+    await syncWithSheets();
   }
 
   // ==============================================================
-  // TOOLTIP DE RECURSOS MEJORADO
+  // saveResource CORREGIDO (con sincronización automática)
   // ==============================================================
-  const tooltip = document.getElementById('resourcesTooltip');
-
-  function showResourcesTooltip(e, proyecto, fase) {
-    const recursos = fase.recursos || [];
-    const content = document.getElementById('tooltipContent');
+  async function saveResource() {
+    if (!userCanEdit()) {
+      alert('No tienes permisos para guardar cambios');
+      return;
+    }
+    const nombre = document.getElementById('resNombre').value.trim();
+    const certificacion = document.getElementById('resCertificacion').value.trim();
+    const tecnica = document.getElementById('resTecnica').value.trim();
+    const horas = parseInt(document.getElementById('resHoras').value) || 0;
     
-    document.getElementById('tooltipTitle').textContent = fase.nombre;
-    document.getElementById('tooltipBadge').textContent = recursos.length;
+    if (!nombre) {
+      alert('El nombre del recurso es obligatorio');
+      return;
+    }
     
-    if (recursos.length === 0) {
-      content.innerHTML = `<div class="tooltip-empty">No hay recursos asignados</div>`;
+    if (!currentFase.recursos) {
+      currentFase.recursos = [];
+    }
+    
+    const resourceData = {
+      nombre,
+      certificacion,
+      tecnica,
+      equipos: [...equiposSeleccionados],
+      horas
+    };
+    
+    if (editingResourceId !== null && editingResourceId !== undefined) {
+      const recurso = currentFase.recursos[editingResourceId];
+      recurso.nombre = nombre;
+      recurso.certificacion = certificacion;
+      recurso.tecnica = tecnica;
+      recurso.equipos = [...equiposSeleccionados];
+      recurso.horas = horas;
     } else {
-      let html = '';
-      recursos.forEach((res) => {
-        const inicial = res.nombre ? res.nombre.charAt(0).toUpperCase() : '?';
-        
-        const equiposHtml = (res.equipos || []).map(eq => {
-          const disponibilidad = getEquipoDisponibilidad(eq, fase.inicio, fase.fin, proyecto.id);
-          const clase = disponibilidad.disponible ? '' : 'ocupado';
-          return `<span class="res-equipo-tag ${clase}">${escapeHtml(eq)}</span>`;
-        }).join('');
-        
-        html += `
-          <div class="tooltip-resource">
-            <div class="res-avatar">${inicial}</div>
-            <div class="res-info">
-              <div class="res-name">${escapeHtml(res.nombre)}</div>
-              <div class="res-equipos">${equiposHtml}</div>
-              <div class="res-tecnica">${escapeHtml(res.tecnica || 'Técnica no especificada')} · ${res.horas || 0}h</div>
-            </div>
-          </div>
-        `;
-      });
-      content.innerHTML = html;
+      resourceData.id = resourceIdCounter++;
+      currentFase.recursos.push(resourceData);
     }
     
-    const rect = e.currentTarget.getBoundingClientRect();
+    limpiarCacheEquipos();
+    hideResourceForm();
+    renderResources();
+    saveToLocalStorage();
     
-    let left = rect.left + rect.width / 2 - 150;
-    let top = rect.top - 10;
-    
-    const tooltipWidth = 360;
-    const tooltipHeight = 280;
-    
-    if (left < 10) left = 10;
-    if (left + tooltipWidth > window.innerWidth - 10) {
-      left = window.innerWidth - tooltipWidth - 10;
-    }
-    
-    if (top < 10) {
-      top = rect.bottom + 10;
-    }
-    if (top + tooltipHeight > window.innerHeight - 10) {
-      top = window.innerHeight - tooltipHeight - 10;
-    }
-    
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${top}px`;
-    tooltip.classList.add('show');
+    // ==============================================================
+    // GUARDAR AUTOMÁTICAMENTE EN GOOGLE SHEETS
+    // ==============================================================
+    await syncWithSheets();
   }
 
-  function hideResourcesTooltip() {
-    tooltip.classList.remove('show');
+  // ==============================================================
+  // deleteResource CORREGIDO (con sincronización automática)
+  // ==============================================================
+  async function deleteResource(index) {
+    if (!userCanEdit()) {
+      alert('No tienes permisos para eliminar recursos');
+      return;
+    }
+    if (!confirm('¿Eliminar este recurso?')) return;
+    currentFase.recursos.splice(index, 1);
+    limpiarCacheEquipos();
+    renderResources();
+    saveToLocalStorage();
+    
+    // ==============================================================
+    // GUARDAR AUTOMÁTICAMENTE EN GOOGLE SHEETS
+    // ==============================================================
+    await syncWithSheets();
   }
 
   // ==============================================================
@@ -3179,92 +3251,6 @@
     equiposSeleccionados = [];
   }
 
-  function saveResource() {
-    if (!userCanEdit()) {
-      alert('No tienes permisos para guardar cambios');
-      return;
-    }
-    const nombre = document.getElementById('resNombre').value.trim();
-    const certificacion = document.getElementById('resCertificacion').value.trim();
-    const tecnica = document.getElementById('resTecnica').value.trim();
-    const horas = parseInt(document.getElementById('resHoras').value) || 0;
-    
-    if (!nombre) {
-      alert('El nombre del recurso es obligatorio');
-      return;
-    }
-    
-    if (!currentFase.recursos) {
-      currentFase.recursos = [];
-    }
-    
-    const resourceData = {
-      nombre,
-      certificacion,
-      tecnica,
-      equipos: [...equiposSeleccionados],
-      horas
-    };
-    
-    if (editingResourceId !== null && editingResourceId !== undefined) {
-      const recurso = currentFase.recursos[editingResourceId];
-      recurso.nombre = nombre;
-      recurso.certificacion = certificacion;
-      recurso.tecnica = tecnica;
-      recurso.equipos = [...equiposSeleccionados];
-      recurso.horas = horas;
-    } else {
-      resourceData.id = resourceIdCounter++;
-      currentFase.recursos.push(resourceData);
-    }
-    
-    limpiarCacheEquipos();
-    hideResourceForm();
-    renderResources();
-    saveToLocalStorage();
-  }
-
-  function deleteResource(index) {
-    if (!userCanEdit()) {
-      alert('No tienes permisos para eliminar recursos');
-      return;
-    }
-    if (!confirm('¿Eliminar este recurso?')) return;
-    currentFase.recursos.splice(index, 1);
-    limpiarCacheEquipos();
-    renderResources();
-    saveToLocalStorage();
-  }
-
-  // ==============================================================
-  // PERSISTENCIA EN LOCALSTORAGE
-  // ==============================================================
-  function saveToLocalStorage() {
-    try {
-      localStorage.setItem('proyectosRecursos', JSON.stringify(proyectos));
-    } catch (e) {
-      console.warn('No se pudo guardar en localStorage:', e);
-    }
-  }
-
-  function loadFromLocalStorage() {
-    try {
-      const data = localStorage.getItem('proyectosRecursos');
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (parsed && parsed.length > 0) {
-          proyectos = parsed;
-        }
-      }
-    } catch (e) {
-      console.warn('No se pudo cargar desde localStorage:', e);
-    }
-  }
-
-  cargarEquiposStock();
-  loadFromLocalStorage();
-  ordenarProyectosPorID();
-
   // ==============================================================
   // RENDERIZADO DEL TIMELINE
   // ==============================================================
@@ -3334,7 +3320,7 @@
   }
 
   // ==============================================================
-  // FUNCIÓN RENDERPROJECTS CORREGIDA
+  // FUNCIÓN RENDERPROJECTS
   // ==============================================================
   function renderProjects() {
     const rowsContainer = document.getElementById("rowsContainer");
@@ -3499,110 +3485,131 @@
   }
 
   // ==============================================================
-// SINCRONIZACIÓN DE SCROLL - CORREGIDA DEFINITIVA
-// ==============================================================
-function syncScroll() {
-  const bodyScroll = document.getElementById("bodyScroll");
-  const headerScroll = document.getElementById("headerScroll");
-  
-  if (!bodyScroll || !headerScroll) {
-    console.warn('⚠️ No se encontraron los elementos de scroll');
-    return;
-  }
-  
-  // Variable para evitar bucles infinitos
-  let syncing = false;
-  
-  // Función para sincronizar de body a header
-  function syncBodyToHeader() {
-    if (syncing) return;
-    syncing = true;
-    headerScroll.scrollLeft = bodyScroll.scrollLeft;
-    hideResourcesTooltip();
-    setTimeout(() => { syncing = false; }, 10);
-  }
-  
-  // Función para sincronizar de header a body
-  function syncHeaderToBody() {
-    if (syncing) return;
-    syncing = true;
-    bodyScroll.scrollLeft = headerScroll.scrollLeft;
-    setTimeout(() => { syncing = false; }, 10);
-  }
-  
-  // Eliminar listeners anteriores (para evitar duplicados)
-  bodyScroll.removeEventListener('scroll', syncBodyToHeader);
-  headerScroll.removeEventListener('scroll', syncHeaderToBody);
-  
-  // Agregar nuevos listeners
-  bodyScroll.addEventListener('scroll', syncBodyToHeader);
-  headerScroll.addEventListener('scroll', syncHeaderToBody);
-  
-  // Sincronizar inmediatamente
-  headerScroll.scrollLeft = bodyScroll.scrollLeft;
-  
-  console.log('✅ Sincronización de scroll activada');
-}
-
-function scrollToToday() {
-  if (!inicioGlobal || !finGlobal) return;
-  
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const inicioMid = new Date(inicioGlobal);
-  inicioMid.setHours(0, 0, 0, 0);
-  
-  let offset = Math.round((hoy - inicioMid) / 86400000);
-  
-  if (offset >= 0 && offset <= DIAS_TOTALES) {
-    const scrollX = (offset * ANCHO_DIA) + 280 - window.innerWidth / 2.5;
+  // SINCRONIZACIÓN DE SCROLL
+  // ==============================================================
+  function syncScroll() {
     const bodyScroll = document.getElementById("bodyScroll");
     const headerScroll = document.getElementById("headerScroll");
     
-    if (bodyScroll && scrollX > 0) {
-      setTimeout(() => {
-        bodyScroll.scrollLeft = Math.max(0, scrollX);
-        if (headerScroll) headerScroll.scrollLeft = Math.max(0, scrollX);
-        console.log('📅 Scroll al día de hoy: ' + scrollX);
-      }, 400);
+    if (!bodyScroll || !headerScroll) {
+      console.warn('⚠️ No se encontraron los elementos de scroll');
+      return;
     }
+    
+    let syncing = false;
+    
+    function syncBodyToHeader() {
+      if (syncing) return;
+      syncing = true;
+      headerScroll.scrollLeft = bodyScroll.scrollLeft;
+      hideResourcesTooltip();
+      setTimeout(() => { syncing = false; }, 10);
+    }
+    
+    function syncHeaderToBody() {
+      if (syncing) return;
+      syncing = true;
+      bodyScroll.scrollLeft = headerScroll.scrollLeft;
+      setTimeout(() => { syncing = false; }, 10);
+    }
+    
+    bodyScroll.removeEventListener('scroll', syncBodyToHeader);
+    headerScroll.removeEventListener('scroll', syncHeaderToBody);
+    
+    bodyScroll.addEventListener('scroll', syncBodyToHeader);
+    headerScroll.addEventListener('scroll', syncHeaderToBody);
+    
+    headerScroll.scrollLeft = bodyScroll.scrollLeft;
+    
+    console.log('✅ Sincronización de scroll activada');
   }
-}
 
-function renderAll() {
-  calcularRangoGlobal();
-  renderFixedHeader();
-  renderProjects();
-  renderTodayLine();
-}
-
-function initDashboard() {
-  renderAll();
-  
-  // Esperar a que todo esté renderizado antes de sincronizar
-  setTimeout(() => {
-    syncScroll();
-  }, 300);
-  
-  setTimeout(() => {
-    scrollToToday();
-  }, 500);
-
-  window.addEventListener('resize', () => {
-    const old = document.querySelector(".today-line");
-    if (old) old.remove();
-    renderTodayLine();
-    hideResourcesTooltip();
-    // Re-sincronizar después de redimensionar
-    setTimeout(() => {
+  function scrollToToday() {
+    if (!inicioGlobal || !finGlobal) return;
+    
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const inicioMid = new Date(inicioGlobal);
+    inicioMid.setHours(0, 0, 0, 0);
+    
+    let offset = Math.round((hoy - inicioMid) / 86400000);
+    
+    if (offset >= 0 && offset <= DIAS_TOTALES) {
+      const scrollX = (offset * ANCHO_DIA) + 280 - window.innerWidth / 2.5;
       const bodyScroll = document.getElementById("bodyScroll");
       const headerScroll = document.getElementById("headerScroll");
-      if (bodyScroll && headerScroll) {
-        headerScroll.scrollLeft = bodyScroll.scrollLeft;
+      
+      if (bodyScroll && scrollX > 0) {
+        setTimeout(() => {
+          bodyScroll.scrollLeft = Math.max(0, scrollX);
+          if (headerScroll) headerScroll.scrollLeft = Math.max(0, scrollX);
+          console.log('📅 Scroll al día de hoy: ' + scrollX);
+        }, 400);
       }
-    }, 200);
-  });
-}
+    }
+  }
+
+  function renderAll() {
+    calcularRangoGlobal();
+    renderFixedHeader();
+    renderProjects();
+    renderTodayLine();
+  }
+
+  function initDashboard() {
+    renderAll();
+    
+    setTimeout(() => {
+      syncScroll();
+    }, 300);
+    
+    setTimeout(() => {
+      scrollToToday();
+    }, 500);
+
+    window.addEventListener('resize', () => {
+      const old = document.querySelector(".today-line");
+      if (old) old.remove();
+      renderTodayLine();
+      hideResourcesTooltip();
+      setTimeout(() => {
+        const bodyScroll = document.getElementById("bodyScroll");
+        const headerScroll = document.getElementById("headerScroll");
+        if (bodyScroll && headerScroll) {
+          headerScroll.scrollLeft = bodyScroll.scrollLeft;
+        }
+      }, 200);
+    });
+  }
+
+  // ==============================================================
+  // PERSISTENCIA EN LOCALSTORAGE
+  // ==============================================================
+  function saveToLocalStorage() {
+    try {
+      localStorage.setItem('proyectosRecursos', JSON.stringify(proyectos));
+    } catch (e) {
+      console.warn('No se pudo guardar en localStorage:', e);
+    }
+  }
+
+  function loadFromLocalStorage() {
+    try {
+      const data = localStorage.getItem('proyectosRecursos');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && parsed.length > 0) {
+          proyectos = parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('No se pudo cargar desde localStorage:', e);
+    }
+  }
+
+  cargarEquiposStock();
+  loadFromLocalStorage();
+  ordenarProyectosPorID();
 
   // ==============================================================
   // EVENTOS

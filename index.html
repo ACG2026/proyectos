@@ -419,6 +419,7 @@
     .timeline-inner {
       display: flex;
       min-width: max-content;
+      width: 100%;
     }
 
     .header-corner-fixed {
@@ -1940,6 +1941,7 @@
         return;
       }
       
+      // REEMPLAZAR datos en lugar de agregar
       const nuevosProyectos = transformarDatosSheets(proyectosData.data, fasesData.data);
       
       if (nuevosProyectos.length === 0) {
@@ -2072,7 +2074,13 @@
       }
     } finally {
       renderAll();
-      scrollToToday();
+      // Forzar sincronización después de cargar
+      setTimeout(() => {
+        syncScroll();
+      }, 400);
+      setTimeout(() => {
+        scrollToToday();
+      }, 600);
       ocultarLoading();
     }
   }
@@ -2303,6 +2311,23 @@
       }
     }
     
+    return fechaStr;
+  }
+
+  // ==============================================================
+  // FUNCIÓN PARA CONVERTIR FECHA ISO A YYYY-MM-DD (para inputs date)
+  // ==============================================================
+  function fechaISOtoYYYYMMDD(fechaStr) {
+    if (!fechaStr) return '';
+    try {
+      const fecha = new Date(fechaStr);
+      if (!isNaN(fecha.getTime())) {
+        const año = fecha.getFullYear();
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        return `${año}-${mes}-${dia}`;
+      }
+    } catch (e) {}
     return fechaStr;
   }
 
@@ -2664,6 +2689,10 @@
       `<option value="${f.nombre}" data-color="${f.color}" ${faseData && f.nombre === faseData.nombre ? 'selected' : ''}>${f.nombre}</option>`
     ).join('');
     
+    // Convertir fechas para los inputs date
+    const inicioVal = faseData ? fechaISOtoYYYYMMDD(faseData.inicio) : '';
+    const finVal = faseData ? fechaISOtoYYYYMMDD(faseData.fin) : '';
+    
     faseDiv.innerHTML = `
       <div class="fase-header">
         <span class="fase-title">Fase #${faseId}</span>
@@ -2688,11 +2717,11 @@
         </div>
         <div class="form-group">
           <label>Fecha Inicio</label>
-          <input type="date" id="fase-${faseId}-inicio" value="${faseData ? faseData.inicio : ''}" />
+          <input type="date" id="fase-${faseId}-inicio" value="${inicioVal}" />
         </div>
         <div class="form-group">
           <label>Fecha Fin</label>
-          <input type="date" id="fase-${faseId}-fin" value="${faseData ? faseData.fin : ''}" />
+          <input type="date" id="fase-${faseId}-fin" value="${finVal}" />
         </div>
       </div>
     `;
@@ -3470,67 +3499,101 @@
   }
 
   // ==============================================================
-  // SINCRONIZACIÓN DE SCROLL - CORREGIDA
-  // ==============================================================
-  function syncScroll() {
+// SINCRONIZACIÓN DE SCROLL - CORREGIDA DEFINITIVA
+// ==============================================================
+function syncScroll() {
+  const bodyScroll = document.getElementById("bodyScroll");
+  const headerScroll = document.getElementById("headerScroll");
+  
+  if (!bodyScroll || !headerScroll) {
+    console.warn('⚠️ No se encontraron los elementos de scroll');
+    return;
+  }
+  
+  // Variable para evitar bucles infinitos
+  let syncing = false;
+  
+  // Función para sincronizar de body a header
+  function syncBodyToHeader() {
+    if (syncing) return;
+    syncing = true;
+    headerScroll.scrollLeft = bodyScroll.scrollLeft;
+    hideResourcesTooltip();
+    setTimeout(() => { syncing = false; }, 10);
+  }
+  
+  // Función para sincronizar de header a body
+  function syncHeaderToBody() {
+    if (syncing) return;
+    syncing = true;
+    bodyScroll.scrollLeft = headerScroll.scrollLeft;
+    setTimeout(() => { syncing = false; }, 10);
+  }
+  
+  // Eliminar listeners anteriores (para evitar duplicados)
+  bodyScroll.removeEventListener('scroll', syncBodyToHeader);
+  headerScroll.removeEventListener('scroll', syncHeaderToBody);
+  
+  // Agregar nuevos listeners
+  bodyScroll.addEventListener('scroll', syncBodyToHeader);
+  headerScroll.addEventListener('scroll', syncHeaderToBody);
+  
+  // Sincronizar inmediatamente
+  headerScroll.scrollLeft = bodyScroll.scrollLeft;
+  
+  console.log('✅ Sincronización de scroll activada');
+}
+
+function scrollToToday() {
+  if (!inicioGlobal || !finGlobal) return;
+  
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const inicioMid = new Date(inicioGlobal);
+  inicioMid.setHours(0, 0, 0, 0);
+  
+  let offset = Math.round((hoy - inicioMid) / 86400000);
+  
+  if (offset >= 0 && offset <= DIAS_TOTALES) {
+    const scrollX = (offset * ANCHO_DIA) + 280 - window.innerWidth / 2.5;
     const bodyScroll = document.getElementById("bodyScroll");
     const headerScroll = document.getElementById("headerScroll");
     
-    if (!bodyScroll || !headerScroll) return;
-    
-    // Función para sincronizar el scroll horizontal
-    function sincronizarBodyScroll() {
-      headerScroll.scrollLeft = bodyScroll.scrollLeft;
-      hideResourcesTooltip();
-    }
-    
-    function sincronizarHeaderScroll() {
-      bodyScroll.scrollLeft = headerScroll.scrollLeft;
-    }
-    
-    // Eliminar event listeners anteriores (para evitar duplicados)
-    bodyScroll.removeEventListener("scroll", sincronizarBodyScroll);
-    headerScroll.removeEventListener("scroll", sincronizarHeaderScroll);
-    
-    // Agregar los nuevos event listeners
-    bodyScroll.addEventListener("scroll", sincronizarBodyScroll);
-    headerScroll.addEventListener("scroll", sincronizarHeaderScroll);
-    
-    // Sincronizar inmediatamente al cargar
-    headerScroll.scrollLeft = bodyScroll.scrollLeft;
-  }
-
-  function scrollToToday() {
-    const hoy = new Date();
-    const inicioMid = new Date(inicioGlobal);
-    inicioMid.setHours(0, 0, 0, 0);
-    let offset = (hoy - inicioMid) / 86400000;
-    
-    if (offset >= 0 && offset <= DIAS_TOTALES) {
-      const scrollX = (offset * ANCHO_DIA) + 280 - window.innerWidth / 2.5;
-      const bodyScroll = document.getElementById("bodyScroll");
-      const headerScroll = document.getElementById("headerScroll");
-      if (bodyScroll && scrollX > 0) {
-        setTimeout(() => {
-          bodyScroll.scrollLeft = Math.max(0, scrollX);
-          if (headerScroll) headerScroll.scrollLeft = Math.max(0, scrollX);
-        }, 300);
-      }
+    if (bodyScroll && scrollX > 0) {
+      setTimeout(() => {
+        bodyScroll.scrollLeft = Math.max(0, scrollX);
+        if (headerScroll) headerScroll.scrollLeft = Math.max(0, scrollX);
+        console.log('📅 Scroll al día de hoy: ' + scrollX);
+      }, 400);
     }
   }
+}
 
-  function renderAll() {
-    calcularRangoGlobal();
-    renderFixedHeader();
-    renderProjects();
-    renderTodayLine();
-  }
+function renderAll() {
+  calcularRangoGlobal();
+  renderFixedHeader();
+  renderProjects();
+  renderTodayLine();
+}
 
-  function initDashboard() {
-    renderAll();
+function initDashboard() {
+  renderAll();
+  
+  // Esperar a que todo esté renderizado antes de sincronizar
+  setTimeout(() => {
     syncScroll();
-    
-    // Forzar sincronización después de un breve retraso
+  }, 300);
+  
+  setTimeout(() => {
+    scrollToToday();
+  }, 500);
+
+  window.addEventListener('resize', () => {
+    const old = document.querySelector(".today-line");
+    if (old) old.remove();
+    renderTodayLine();
+    hideResourcesTooltip();
+    // Re-sincronizar después de redimensionar
     setTimeout(() => {
       const bodyScroll = document.getElementById("bodyScroll");
       const headerScroll = document.getElementById("headerScroll");
@@ -3538,26 +3601,8 @@
         headerScroll.scrollLeft = bodyScroll.scrollLeft;
       }
     }, 200);
-    
-    setTimeout(() => {
-      scrollToToday();
-    }, 300);
-
-    window.addEventListener('resize', () => {
-      const old = document.querySelector(".today-line");
-      if (old) old.remove();
-      renderTodayLine();
-      hideResourcesTooltip();
-      // Re-sincronizar después de redimensionar
-      setTimeout(() => {
-        const bodyScroll = document.getElementById("bodyScroll");
-        const headerScroll = document.getElementById("headerScroll");
-        if (bodyScroll && headerScroll) {
-          headerScroll.scrollLeft = bodyScroll.scrollLeft;
-        }
-      }, 100);
-    });
-  }
+  });
+}
 
   // ==============================================================
   // EVENTOS

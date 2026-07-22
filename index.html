@@ -1902,19 +1902,22 @@
   const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycby2vMSxAQdLyA6Cx_GHmJn2uG-P53NYkwZ6LaQ8KZ2qpbMEQAXEdYbw0-Sj7_TU-H7-/exec';
   
   // ==============================================================
-  // CONVERTIR FECHAS FLEXIBLE - CORREGIDA
+  // CONVERTIR FECHAS - FUNCIONES CORREGIDAS
   // ==============================================================
   function convertirFechaParaInput(fechaStr) {
     if (!fechaStr) return '';
     
     // Si es un string
     if (typeof fechaStr === 'string') {
-      // Si ya está en formato YYYY-MM-DD, devolverlo tal cual
+      // Limpiar espacios
+      fechaStr = fechaStr.trim();
+      
+      // Si ya está en formato YYYY-MM-DD
       if (fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
         return fechaStr;
       }
       
-      // Si está en formato DD/MM/YYYY, convertirlo a YYYY-MM-DD
+      // Si está en formato DD/MM/YYYY
       if (fechaStr.match(/^\d{2}\/\d{2}\/\d{4}/)) {
         const partes = fechaStr.split('/');
         return `${partes[2]}-${partes[1]}-${partes[0]}`;
@@ -1922,19 +1925,6 @@
       
       // Si es ISO con T (ej: 2024-03-01T00:00:00.000Z)
       if (fechaStr.includes('T')) {
-        try {
-          const fecha = new Date(fechaStr);
-          if (!isNaN(fecha.getTime())) {
-            const año = fecha.getFullYear();
-            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-            const dia = String(fecha.getDate()).padStart(2, '0');
-            return `${año}-${mes}-${dia}`;
-          }
-        } catch (e) {}
-      }
-      
-      // Intentar parsear cualquier otra fecha
-      try {
         const fecha = new Date(fechaStr);
         if (!isNaN(fecha.getTime())) {
           const año = fecha.getFullYear();
@@ -1942,20 +1932,27 @@
           const dia = String(fecha.getDate()).padStart(2, '0');
           return `${año}-${mes}-${dia}`;
         }
-      } catch (e) {}
+      }
+      
+      // Intentar parsear cualquier otra fecha
+      const fecha = new Date(fechaStr);
+      if (!isNaN(fecha.getTime())) {
+        const año = fecha.getFullYear();
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        return `${año}-${mes}-${dia}`;
+      }
     }
     
     // Si es un número (timestamp)
     if (typeof fechaStr === 'number') {
-      try {
-        const fecha = new Date(fechaStr);
-        if (!isNaN(fecha.getTime())) {
-          const año = fecha.getFullYear();
-          const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-          const dia = String(fecha.getDate()).padStart(2, '0');
-          return `${año}-${mes}-${dia}`;
-        }
-      } catch (e) {}
+      const fecha = new Date(fechaStr);
+      if (!isNaN(fecha.getTime())) {
+        const año = fecha.getFullYear();
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        return `${año}-${mes}-${dia}`;
+      }
     }
     
     return fechaStr;
@@ -1966,25 +1963,25 @@
     
     // Si es un número (timestamp de Google Sheets)
     if (typeof fechaStr === 'number') {
-      try {
-        const fecha = new Date((fechaStr - 25569) * 86400 * 1000);
+      const fecha = new Date((fechaStr - 25569) * 86400 * 1000);
+      if (!isNaN(fecha.getTime())) {
         const dia = String(fecha.getDate()).padStart(2, '0');
         const mes = String(fecha.getMonth() + 1).padStart(2, '0');
         return `${dia}/${mes}`;
-      } catch (e) {}
+      }
     }
     
     if (typeof fechaStr === 'string') {
+      fechaStr = fechaStr.trim();
+      
       // Si es ISO con T
       if (fechaStr.includes('T')) {
-        try {
-          const fecha = new Date(fechaStr);
-          if (!isNaN(fecha.getTime())) {
-            const dia = String(fecha.getDate()).padStart(2, '0');
-            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-            return `${dia}/${mes}`;
-          }
-        } catch (e) {}
+        const fecha = new Date(fechaStr);
+        if (!isNaN(fecha.getTime())) {
+          const dia = String(fecha.getDate()).padStart(2, '0');
+          const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+          return `${dia}/${mes}`;
+        }
       }
       
       // Si ya está en formato YYYY-MM-DD
@@ -1993,7 +1990,7 @@
         return `${partes[2]}/${partes[1]}`;
       }
       
-      // Si ya está en DD/MM, devolverlo tal cual
+      // Si ya está en DD/MM
       if (fechaStr.match(/^\d{2}\/\d{2}/)) {
         return fechaStr;
       }
@@ -2042,14 +2039,12 @@
     try {
       mostrarLoading('Sincronizando con Google Sheets...');
       
-      // Preparar datos para Sheets
       const proyectosData = proyectos.map(p => ({
         ID: p.id,
         Nombre: p.nombre,
         Cliente: p.cliente
       }));
       
-      // Preparar fases
       const fasesData = [];
       proyectos.forEach(p => {
         p.fases.forEach(f => {
@@ -2064,20 +2059,16 @@
         });
       });
       
-      // Preparar equipos
       const equiposData = equiposStock.map(e => ({
         Nombre: e.nombre,
         Código: e.codigo || ''
       }));
       
-      // Guardar en Sheets
       await guardarEnSheets('Proyectos', proyectosData);
       await guardarEnSheets('Fases', fasesData);
       await guardarEnSheets('Equipos', equiposData);
       
-      // También guardar localmente
       saveToLocalStorage();
-      
       alert('✅ Datos guardados correctamente en Google Sheets');
       
     } catch (error) {
@@ -2096,21 +2087,14 @@
       const url = `${GOOGLE_SHEETS_URL}?action=set&sheet=${encodeURIComponent(nombreHoja)}`;
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: datos })
       });
       
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
       
       const result = await response.json();
-      
-      if (result.error) {
-        throw new Error(result.error);
-      }
+      if (result.error) throw new Error(result.error);
       
       return result;
     } catch (error) {
@@ -2127,15 +2111,10 @@
       const url = `${GOOGLE_SHEETS_URL}?action=get&sheet=${encodeURIComponent(nombreHoja)}`;
       const response = await fetch(url);
       
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
       
       const result = await response.json();
-      
-      if (result.error) {
-        throw new Error(result.error);
-      }
+      if (result.error) throw new Error(result.error);
       
       return result;
     } catch (error) {
@@ -2216,12 +2195,8 @@
       }
     } finally {
       renderAll();
-      setTimeout(() => {
-        syncScroll();
-      }, 400);
-      setTimeout(() => {
-        scrollToToday();
-      }, 600);
+      setTimeout(() => { syncScroll(); }, 400);
+      setTimeout(() => { scrollToToday(); }, 600);
       ocultarLoading();
     }
   }
@@ -2766,7 +2741,7 @@
   }
 
   // ==============================================================
-  // addFaseToModal CORREGIDO (con fechas flexibles)
+  // addFaseToModal CORREGIDO
   // ==============================================================
   function addFaseToModal(faseData) {
     const container = document.getElementById('fasesContainer');
@@ -2845,7 +2820,7 @@
   }
 
   // ==============================================================
-  // saveProject CORREGIDO (con sincronización automática)
+  // saveProject CORREGIDO
   // ==============================================================
   async function saveProject() {
     if (!userCanEdit()) {
@@ -2918,14 +2893,12 @@
     closeProjectModal();
     renderAll();
     
-    // ==============================================================
     // GUARDAR AUTOMÁTICAMENTE EN GOOGLE SHEETS
-    // ==============================================================
     await syncWithSheets();
   }
 
   // ==============================================================
-  // deleteProject CORREGIDO (con sincronización automática)
+  // deleteProject CORREGIDO
   // ==============================================================
   async function deleteProject(index) {
     if (!userCanEdit()) {
@@ -2940,14 +2913,11 @@
     saveToLocalStorage();
     renderAll();
     
-    // ==============================================================
-    // GUARDAR AUTOMÁTICAMENTE EN GOOGLE SHEETS
-    // ==============================================================
     await syncWithSheets();
   }
 
   // ==============================================================
-  // saveResource CORREGIDO (con sincronización automática)
+  // saveResource CORREGIDO
   // ==============================================================
   async function saveResource() {
     if (!userCanEdit()) {
@@ -2993,14 +2963,11 @@
     renderResources();
     saveToLocalStorage();
     
-    // ==============================================================
-    // GUARDAR AUTOMÁTICAMENTE EN GOOGLE SHEETS
-    // ==============================================================
     await syncWithSheets();
   }
 
   // ==============================================================
-  // deleteResource CORREGIDO (con sincronización automática)
+  // deleteResource CORREGIDO
   // ==============================================================
   async function deleteResource(index) {
     if (!userCanEdit()) {
@@ -3013,14 +2980,11 @@
     renderResources();
     saveToLocalStorage();
     
-    // ==============================================================
-    // GUARDAR AUTOMÁTICAMENTE EN GOOGLE SHEETS
-    // ==============================================================
     await syncWithSheets();
   }
 
   // ==============================================================
-  // GESTIÓN DE RECURSOS (panel editable)
+  // GESTIÓN DE RECURSOS (panel editable) - COMPLETA
   // ==============================================================
   let currentProject = null;
   let currentFase = null;
@@ -3289,6 +3253,74 @@
   }
 
   // ==============================================================
+  // TOOLTIP DE RECURSOS
+  // ==============================================================
+  const tooltip = document.getElementById('resourcesTooltip');
+
+  function showResourcesTooltip(e, proyecto, fase) {
+    const recursos = fase.recursos || [];
+    const content = document.getElementById('tooltipContent');
+    
+    document.getElementById('tooltipTitle').textContent = fase.nombre;
+    document.getElementById('tooltipBadge').textContent = recursos.length;
+    
+    if (recursos.length === 0) {
+      content.innerHTML = `<div class="tooltip-empty">No hay recursos asignados</div>`;
+    } else {
+      let html = '';
+      recursos.forEach((res) => {
+        const inicial = res.nombre ? res.nombre.charAt(0).toUpperCase() : '?';
+        
+        const equiposHtml = (res.equipos || []).map(eq => {
+          const disponibilidad = getEquipoDisponibilidad(eq, fase.inicio, fase.fin, proyecto.id);
+          const clase = disponibilidad.disponible ? '' : 'ocupado';
+          return `<span class="res-equipo-tag ${clase}">${escapeHtml(eq)}</span>`;
+        }).join('');
+        
+        html += `
+          <div class="tooltip-resource">
+            <div class="res-avatar">${inicial}</div>
+            <div class="res-info">
+              <div class="res-name">${escapeHtml(res.nombre)}</div>
+              <div class="res-equipos">${equiposHtml}</div>
+              <div class="res-tecnica">${escapeHtml(res.tecnica || 'Técnica no especificada')} · ${res.horas || 0}h</div>
+            </div>
+          </div>
+        `;
+      });
+      content.innerHTML = html;
+    }
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    
+    let left = rect.left + rect.width / 2 - 150;
+    let top = rect.top - 10;
+    
+    const tooltipWidth = 360;
+    const tooltipHeight = 280;
+    
+    if (left < 10) left = 10;
+    if (left + tooltipWidth > window.innerWidth - 10) {
+      left = window.innerWidth - tooltipWidth - 10;
+    }
+    
+    if (top < 10) {
+      top = rect.bottom + 10;
+    }
+    if (top + tooltipHeight > window.innerHeight - 10) {
+      top = window.innerHeight - tooltipHeight - 10;
+    }
+    
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+    tooltip.classList.add('show');
+  }
+
+  function hideResourcesTooltip() {
+    tooltip.classList.remove('show');
+  }
+
+  // ==============================================================
   // RENDERIZADO DEL TIMELINE
   // ==============================================================
   function obtenerFechasValidas() {
@@ -3357,7 +3389,7 @@
   }
 
   // ==============================================================
-  // FUNCIÓN RENDERPROJECTS
+  // FUNCIÓN RENDERPROJECTS - COMPLETA
   // ==============================================================
   function renderProjects() {
     const rowsContainer = document.getElementById("rowsContainer");
@@ -3549,18 +3581,13 @@
       hideResourcesTooltip();
     }
     
-    // Eliminar listeners antiguos
     bodyScroll.removeEventListener('scroll', sincronizarScroll);
-    
-    // Agregar listener
     bodyScroll.addEventListener('scroll', sincronizarScroll);
     
-    // Sincronizar también cuando el header haga scroll (por si el usuario arrastra desde ahí)
     headerScroll.addEventListener('scroll', function() {
       bodyScroll.scrollLeft = headerScroll.scrollLeft;
     });
     
-    // Forzar sincronización inicial
     setTimeout(() => {
       headerScroll.scrollLeft = bodyScroll.scrollLeft;
       console.log('✅ Sincronización de scroll activada');
@@ -3597,19 +3624,13 @@
     renderFixedHeader();
     renderProjects();
     renderTodayLine();
-    
-    // Forzar sincronización después de renderizar
-    setTimeout(() => {
-      syncScroll();
-    }, 300);
   }
 
   function initDashboard() {
     renderAll();
     
-    setTimeout(() => {
-      scrollToToday();
-    }, 500);
+    setTimeout(() => { syncScroll(); }, 300);
+    setTimeout(() => { scrollToToday(); }, 500);
 
     window.addEventListener('resize', () => {
       const old = document.querySelector(".today-line");

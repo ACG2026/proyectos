@@ -706,11 +706,11 @@
       padding: 14px 18px;
       min-width: 260px;
       max-width: 380px;
-      max-height: 280px;
+      max-height: 420px;
       overflow-y: auto;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.05);
       z-index: 10000;
-      pointer-events: none;
+      pointer-events: auto;
       backdrop-filter: blur(12px);
     }
 
@@ -842,6 +842,19 @@
       font-size: 0.7rem;
       text-align: center;
       padding: 12px 0;
+    }
+
+    .tooltip-comentario {
+      background: rgba(96, 125, 139, 0.15);
+      border: 1px solid rgba(96, 125, 139, 0.35);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      font-size: 0.65rem;
+      color: #cbd5e1;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
     /* ============================================ */
@@ -1796,6 +1809,9 @@
       <button class="btn-admin" onclick="openEquiposModal()">🔧 Equipos</button>
       <button class="btn-admin" onclick="openPersonalModal()">👷 Personal</button>
     </div>
+    <div class="admin-buttons" id="viewerButtons">
+      <button class="btn-admin" onclick="openConsultaModal()">🔍 Consultar Disponibilidad</button>
+    </div>
     <div class="header-actions">
       <button class="btn-sync" id="btnSync" onclick="syncWithSheets()">🔄 Sincronizar</button>
       <button class="btn-add-project" id="btnAddProject" onclick="openAddProjectModal()">
@@ -1842,6 +1858,7 @@
     <button class="close-btn" id="closePanel">✕</button>
   </div>
   <div class="panel-subtitle" id="panelSubtitle">Proyecto / Fase</div>
+  <div id="panelComentarioSection" style="padding: 0 0 12px;"></div>
   <div id="panelContent"></div>
 </div>
 
@@ -1873,6 +1890,42 @@
       <input type="text" id="nuevaPersonaNombre" placeholder="Nombre de la persona" />
       <input type="text" id="nuevaPersonaCertificacion" placeholder="Certificación (opcional)" />
       <button onclick="agregarPersona()">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE CONSULTA DE DISPONIBILIDAD (solo Visualizador) -->
+<div class="modal-overlay" id="consultaModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>🔍 Consultar Disponibilidad</h2>
+      <button class="close-btn" onclick="closeConsultaModal()">✕</button>
+    </div>
+    <div style="padding: 4px 0 8px;">
+      <div class="form-group">
+        <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase;">Persona (opcional)</label>
+        <select id="consultaPersona" style="width:100%;">
+          <option value="">-- Ninguna --</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase;">Equipo (opcional)</label>
+        <select id="consultaEquipo" style="width:100%;">
+          <option value="">-- Ninguno --</option>
+        </select>
+      </div>
+      <div class="form-row-duo" style="margin-top:10px;">
+        <div class="form-group">
+          <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase;">Fecha inicio</label>
+          <input type="date" id="consultaInicio" style="width:100%;" />
+        </div>
+        <div class="form-group">
+          <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase;">Fecha fin</label>
+          <input type="date" id="consultaFin" style="width:100%;" />
+        </div>
+      </div>
+      <button class="save-btn" style="width:100%; margin-top:14px;" onclick="ejecutarConsultaDisponibilidad()">Consultar</button>
+      <div id="consultaResultado" style="margin-top:12px; display:flex; flex-direction:column; gap:8px;"></div>
     </div>
   </div>
 </div>
@@ -2092,7 +2145,8 @@
             Inicio: f.inicio,
             Fin: f.fin,
             Color: f.color,
-            Avance: f.avance || 0
+            Avance: f.avance || 0,
+            Comentario: f.comentario || ''
           });
           
           (f.recursos || []).forEach(r => {
@@ -2241,6 +2295,7 @@
           fin: fase.Fin || fase.fin || '',
           color: fase.Color || fase.color || '#2196F3',
           avance: parseInt(fase.Avance || fase.avance || 0),
+          comentario: fase.Comentario || fase.comentario || '',
           recursos: recursos
         });
       });
@@ -2485,13 +2540,16 @@
     const isAdmin = currentUser && currentUser.role === 'admin';
     const btnAdd = document.getElementById('btnAddProject');
     const adminBtns = document.getElementById('adminButtons');
+    const viewerBtns = document.getElementById('viewerButtons');
     
     if (isAdmin) {
       btnAdd.classList.remove('disabled');
       adminBtns.style.display = 'flex';
+      viewerBtns.style.display = 'none';
     } else {
       btnAdd.classList.add('disabled');
       adminBtns.style.display = 'none';
+      viewerBtns.style.display = 'flex';
     }
   }
 
@@ -2936,6 +2994,89 @@
   }
 
   // ==============================================================
+  // CONSULTA DE DISPONIBILIDAD (solo Visualizador)
+  // ==============================================================
+  function openConsultaModal() {
+    const selPersona = document.getElementById('consultaPersona');
+    selPersona.innerHTML = '<option value="">-- Ninguna --</option>' +
+      personalStock
+        .filter(p => (p.estado || 'Activo') === 'Activo')
+        .map(p => `<option value="${escapeHtml(p.nombre)}">${escapeHtml(p.nombre)}</option>`)
+        .join('');
+    
+    const selEquipo = document.getElementById('consultaEquipo');
+    selEquipo.innerHTML = '<option value="">-- Ninguno --</option>' +
+      equiposStock
+        .map(e => `<option value="${escapeHtml(e.nombre)}">${escapeHtml(e.nombre)}</option>`)
+        .join('');
+    
+    document.getElementById('consultaInicio').value = '';
+    document.getElementById('consultaFin').value = '';
+    document.getElementById('consultaResultado').innerHTML = '';
+    document.getElementById('consultaModal').classList.add('active');
+  }
+
+  function closeConsultaModal() {
+    document.getElementById('consultaModal').classList.remove('active');
+  }
+
+  function ejecutarConsultaDisponibilidad() {
+    const persona = document.getElementById('consultaPersona').value;
+    const equipo = document.getElementById('consultaEquipo').value;
+    const inicio = document.getElementById('consultaInicio').value;
+    const fin = document.getElementById('consultaFin').value;
+    const resultado = document.getElementById('consultaResultado');
+    
+    if (!persona && !equipo) {
+      resultado.innerHTML = `<div class="equipo-ocupado-msg">Selecciona al menos una persona o un equipo</div>`;
+      return;
+    }
+    if (!inicio || !fin) {
+      resultado.innerHTML = `<div class="equipo-ocupado-msg">Selecciona la fecha de inicio y de fin</div>`;
+      return;
+    }
+    if (parseFechaLocal(inicio) > parseFechaLocal(fin)) {
+      resultado.innerHTML = `<div class="equipo-ocupado-msg">La fecha de inicio no puede ser posterior a la de fin</div>`;
+      return;
+    }
+    
+    let html = '';
+    
+    if (persona) {
+      const conflicto = verificarDisponibilidadPersona(persona, inicio, fin, null);
+      if (!conflicto) {
+        html += `<div class="equipo-status disponible"><span class="status-dot"></span> "${escapeHtml(persona)}" está disponible en ese rango de fechas</div>`;
+      } else {
+        html += `
+          <div class="equipo-ocupado-msg">
+            🔴 "${escapeHtml(persona)}" está ocupado(a):<br>
+            <strong>${escapeHtml(conflicto.proyecto)}</strong> (${escapeHtml(conflicto.proyectoId)})<br>
+            Fase: <strong>${escapeHtml(conflicto.fase)}</strong><br>
+            Período: ${formatearFechaDDMM(conflicto.inicio)} → ${formatearFechaDDMM(conflicto.fin)}
+          </div>`;
+      }
+    }
+    
+    if (equipo) {
+      const conflicto = verificarDisponibilidadEquipo(equipo, inicio, fin, null);
+      if (!conflicto) {
+        html += `<div class="equipo-status disponible"><span class="status-dot"></span> "${escapeHtml(equipo)}" está disponible en ese rango de fechas</div>`;
+      } else {
+        html += `
+          <div class="equipo-ocupado-msg">
+            🔴 "${escapeHtml(equipo)}" está ocupado:<br>
+            <strong>${escapeHtml(conflicto.proyecto)}</strong> (${escapeHtml(conflicto.proyectoId)})<br>
+            Fase: <strong>${escapeHtml(conflicto.fase)}</strong><br>
+            Asignado a: ${escapeHtml(conflicto.recurso || '—')}<br>
+            Período: ${formatearFechaDDMM(conflicto.inicio)} → ${formatearFechaDDMM(conflicto.fin)}
+          </div>`;
+      }
+    }
+    
+    resultado.innerHTML = html;
+  }
+
+  // ==============================================================
   // GESTIÓN DE EQUIPOS
   // ==============================================================
   function cargarEquiposStock() {
@@ -3230,7 +3371,8 @@
         avance: avance,
         inicio: inicio,
         fin: fin,
-        recursos: []
+        recursos: [],
+        comentario: ''
       });
     }
     
@@ -3253,6 +3395,9 @@
         const oldFase = oldProject.fases.find(f => f.id && f.id === fase.id) || oldProject.fases[idx];
         if (oldFase && oldFase.recursos) {
           fase.recursos = oldFase.recursos;
+        }
+        if (oldFase && oldFase.comentario) {
+          fase.comentario = oldFase.comentario;
         }
       });
       proyectos[editingProjectIndex] = newProject;
@@ -3398,6 +3543,7 @@
     document.getElementById('panelTitle').textContent = `Recursos: ${fase.nombre}`;
     document.getElementById('panelSubtitle').textContent = `${proyecto.nombre} | ${proyecto.cliente}`;
     
+    renderPanelComentario();
     renderResources();
     
     document.getElementById('resourcesPanel').classList.add('open');
@@ -3414,6 +3560,49 @@
       cambiosRecursosPendientes = false;
       syncWithSheets(true);
     }
+  }
+
+  function renderPanelComentario() {
+    const container = document.getElementById('panelComentarioSection');
+    const canEdit = userCanEdit();
+    const comentarioActual = currentFase.comentario || '';
+    
+    if (canEdit) {
+      container.innerHTML = `
+        <div style="background:rgba(255,255,255,0.03); border:1px solid #2d3a5e; border-radius:10px; padding:10px 12px;">
+          <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase; display:block; margin-bottom:6px;">💬 Comentario de la fase</label>
+          <textarea id="faseComentarioInput" maxlength="500" rows="3" placeholder="Comentario corto (máx. 500 caracteres)..." style="width:100%; resize:vertical; background:#0f172a; border:1px solid #2d3a5e; border-radius:6px; color:#e2e8f0; padding:8px; font-family:inherit; font-size:0.75rem; box-sizing:border-box;">${escapeHtml(comentarioActual)}</textarea>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+            <span id="faseComentarioContador" style="font-size:0.6rem; color:#64748b;">${comentarioActual.length}/500</span>
+            <button class="save-btn" style="padding:5px 14px; font-size:0.65rem;" onclick="guardarComentarioFase()">Guardar comentario</button>
+          </div>
+        </div>
+      `;
+      const textarea = document.getElementById('faseComentarioInput');
+      textarea.addEventListener('input', () => {
+        document.getElementById('faseComentarioContador').textContent = `${textarea.value.length}/500`;
+      });
+    } else if (comentarioActual) {
+      container.innerHTML = `
+        <div style="background:rgba(255,255,255,0.03); border:1px solid #2d3a5e; border-radius:10px; padding:10px 12px;">
+          <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase; display:block; margin-bottom:4px;">💬 Comentario</label>
+          <div style="font-size:0.75rem; color:#cbd5e1; white-space:pre-wrap; word-break:break-word;">${escapeHtml(comentarioActual)}</div>
+        </div>
+      `;
+    } else {
+      container.innerHTML = '';
+    }
+  }
+
+  function guardarComentarioFase() {
+    if (!userCanEdit()) return;
+    const textarea = document.getElementById('faseComentarioInput');
+    const valor = textarea.value.slice(0, 500);
+    currentFase.comentario = valor;
+    saveToLocalStorage();
+    cambiosRecursosPendientes = true;
+    const contador = document.getElementById('faseComentarioContador');
+    if (contador) contador.textContent = `${valor.length}/500 ✓ guardado`;
   }
 
   function renderResources() {
@@ -3693,18 +3882,29 @@
   // TOOLTIP DE RECURSOS
   // ==============================================================
   const tooltip = document.getElementById('resourcesTooltip');
+  let tooltipHideTimeout = null;
 
   function showResourcesTooltip(e, proyecto, fase) {
+    if (tooltipHideTimeout) {
+      clearTimeout(tooltipHideTimeout);
+      tooltipHideTimeout = null;
+    }
+    
     const recursos = fase.recursos || [];
     const content = document.getElementById('tooltipContent');
     
     document.getElementById('tooltipTitle').textContent = fase.nombre;
     document.getElementById('tooltipBadge').textContent = recursos.length;
     
+    let html = '';
+    
+    if (fase.comentario && fase.comentario.trim()) {
+      html += `<div class="tooltip-comentario">💬 ${escapeHtml(fase.comentario)}</div>`;
+    }
+    
     if (recursos.length === 0) {
-      content.innerHTML = `<div class="tooltip-empty">No hay recursos asignados</div>`;
+      html += `<div class="tooltip-empty">No hay recursos asignados</div>`;
     } else {
-      let html = '';
       recursos.forEach((res) => {
         const inicial = res.nombre ? res.nombre.charAt(0).toUpperCase() : '?';
         
@@ -3725,37 +3925,59 @@
           </div>
         `;
       });
-      content.innerHTML = html;
     }
+    content.innerHTML = html;
     
-    const rect = e.currentTarget.getBoundingClientRect();
+    posicionarTooltip(e);
+    tooltip.classList.add('show');
+  }
+
+  function posicionarTooltip(e) {
+    const cursorX = e.clientX;
+    const cursorY = e.clientY;
     
-    let left = rect.left + rect.width / 2 - 150;
-    let top = rect.top - 10;
+    let left = cursorX + 18;
+    let top = cursorY + 18;
     
     const tooltipWidth = 360;
-    const tooltipHeight = 280;
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const tooltipHeight = tooltipRect.height || 280;
     
-    if (left < 10) left = 10;
     if (left + tooltipWidth > window.innerWidth - 10) {
-      left = window.innerWidth - tooltipWidth - 10;
+      left = cursorX - tooltipWidth - 18;
+      if (left < 10) left = 10;
     }
     
-    if (top < 10) {
-      top = rect.bottom + 10;
-    }
     if (top + tooltipHeight > window.innerHeight - 10) {
       top = window.innerHeight - tooltipHeight - 10;
+      if (top < 10) top = 10;
     }
     
     tooltip.style.left = `${left}px`;
     tooltip.style.top = `${top}px`;
-    tooltip.classList.add('show');
   }
 
   function hideResourcesTooltip() {
     tooltip.classList.remove('show');
   }
+
+  function programarOcultarTooltip() {
+    if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+    tooltipHideTimeout = setTimeout(() => {
+      hideResourcesTooltip();
+    }, 200);
+  }
+
+  tooltip.addEventListener('mouseenter', function() {
+    if (tooltipHideTimeout) {
+      clearTimeout(tooltipHideTimeout);
+      tooltipHideTimeout = null;
+    }
+  });
+
+  tooltip.addEventListener('mouseleave', function() {
+    programarOcultarTooltip();
+  });
 
   // ==============================================================
   // RENDERIZADO DEL TIMELINE
@@ -3919,8 +4141,14 @@
           showResourcesTooltip(e, proy, faseData);
         });
 
+        bloque.addEventListener('mousemove', function(e) {
+          if (tooltip.classList.contains('show')) {
+            posicionarTooltip(e);
+          }
+        });
+
         bloque.addEventListener('mouseleave', function(e) {
-          hideResourcesTooltip();
+          programarOcultarTooltip();
         });
 
         bloque.addEventListener('click', function(e) {
@@ -4140,7 +4368,10 @@
     if (tooltip.classList.contains('show')) {
       const target = e.target;
       if (!target.closest('.phase-block') && !target.closest('.resources-tooltip')) {
-        hideResourcesTooltip();
+        programarOcultarTooltip();
+      } else if (tooltipHideTimeout) {
+        clearTimeout(tooltipHideTimeout);
+        tooltipHideTimeout = null;
       }
     }
   });
@@ -4160,6 +4391,12 @@
   document.getElementById('personalModal').addEventListener('click', function(e) {
     if (e.target === this) {
       closePersonalModal();
+    }
+  });
+
+  document.getElementById('consultaModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeConsultaModal();
     }
   });
 

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=0.9, user-scalable=no">
   <title>Seguimiento de Proyectos | Dashboard</title>
+  <link rel="icon" type="image/png" href="logo.png">
   <style>
     /* ============================================ */
     /* ESTILOS BASE */
@@ -1919,6 +1920,24 @@
   const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzrx-ExRjQFIoEO-SRnN9FKsmMJU9pWbLaSZMckXtICBp4Lf0MQ77J-n2YnvJN2G_wl/exec';
   
   // ==============================================================
+  // PARSEO DE FECHAS EN HORA LOCAL (evita el desfase de 1 día)
+  // "new Date('2026-07-27')" lo interpreta como UTC medianoche, y en
+  // zonas horarias detrás de UTC (como Perú, UTC-5) eso se convierte
+  // en 26 de julio al pasarlo a hora local. Esta función arma la
+  // fecha manualmente con año/mes/día para que quede en hora local.
+  // ==============================================================
+  function parseFechaLocal(fechaStr) {
+    if (!fechaStr) return new Date(NaN);
+    if (fechaStr instanceof Date) return fechaStr;
+    const soloFecha = String(fechaStr).trim().split('T')[0];
+    const partes = soloFecha.split('-');
+    if (partes.length !== 3) return new Date(fechaStr);
+    const [anio, mes, dia] = partes.map(Number);
+    if (!anio || !mes || !dia) return new Date(fechaStr);
+    return new Date(anio, mes - 1, dia);
+  }
+  
+  // ==============================================================
   // CONVERTIR FECHAS - FUNCIONES CORREGIDAS
   // ==============================================================
   function convertirFechaParaInput(fechaStr) {
@@ -2045,7 +2064,7 @@
     document.getElementById('loadingOverlay').classList.remove('active');
   }
 
-  async function syncWithSheets() {
+  async function syncWithSheets(silencioso) {
     if (sincronizando) return;
     
     const btnSync = document.getElementById('btnSync');
@@ -2109,7 +2128,9 @@
       await guardarEnSheets('Asignaciones', asignacionesData);
       
       saveToLocalStorage();
-      alert('✅ Datos guardados correctamente en Google Sheets');
+      if (!silencioso) {
+        alert('✅ Datos guardados correctamente en Google Sheets');
+      }
       
     } catch (error) {
       console.error('Error en sincronización:', error);
@@ -2592,8 +2613,8 @@
     
     if (!asignaciones[equipoNombre]) return null;
     
-    const fechaInicioDate = new Date(fechaInicio);
-    const fechaFinDate = new Date(fechaFin);
+    const fechaInicioDate = parseFechaLocal(fechaInicio);
+    const fechaFinDate = parseFechaLocal(fechaFin);
     
     for (const asignacion of asignaciones[equipoNombre]) {
       if (asignacion.proyectoId === proyectoActualId) {
@@ -2602,8 +2623,8 @@
         }
       }
       
-      const asigInicio = new Date(asignacion.inicio);
-      const asigFin = new Date(asignacion.fin);
+      const asigInicio = parseFechaLocal(asignacion.inicio);
+      const asigFin = parseFechaLocal(asignacion.fin);
       
       if (fechaInicioDate <= asigFin && fechaFinDate >= asigInicio) {
         return {
@@ -2739,8 +2760,8 @@
     
     if (!asignaciones[nombrePersona]) return null;
     
-    const fechaInicioDate = new Date(fechaInicio);
-    const fechaFinDate = new Date(fechaFin);
+    const fechaInicioDate = parseFechaLocal(fechaInicio);
+    const fechaFinDate = parseFechaLocal(fechaFin);
     
     for (const asignacion of asignaciones[nombrePersona]) {
       // Si es la misma fase que estamos editando, no cuenta como conflicto consigo misma
@@ -2748,8 +2769,8 @@
         continue;
       }
       
-      const asigInicio = new Date(asignacion.inicio);
-      const asigFin = new Date(asignacion.fin);
+      const asigInicio = parseFechaLocal(asignacion.inicio);
+      const asigFin = parseFechaLocal(asignacion.fin);
       
       if (fechaInicioDate <= asigFin && fechaFinDate >= asigInicio) {
         return {
@@ -3333,8 +3354,7 @@
     hideResourceForm();
     renderResources();
     saveToLocalStorage();
-    
-    await syncWithSheets();
+    cambiosRecursosPendientes = true;
   }
 
   // ==============================================================
@@ -3351,8 +3371,7 @@
     limpiarCachePersonas();
     renderResources();
     saveToLocalStorage();
-    
-    await syncWithSheets();
+    cambiosRecursosPendientes = true;
   }
 
   // ==============================================================
@@ -3363,9 +3382,15 @@
   let currentFaseIndex = -1;
   let editingResourceId = null;
   let resourceIdCounter = 100;
+  let cambiosRecursosPendientes = false;
   let equiposSeleccionados = [];
 
   function openResourcesPanel(proyecto, fase, faseIndex) {
+    if (cambiosRecursosPendientes && currentFase && currentFase.id !== fase.id) {
+      cambiosRecursosPendientes = false;
+      syncWithSheets(true);
+    }
+    
     currentProject = proyecto;
     currentFase = fase;
     currentFaseIndex = faseIndex;
@@ -3384,6 +3409,11 @@
     document.getElementById('panelOverlay').classList.remove('active');
     editingResourceId = null;
     equiposSeleccionados = [];
+    
+    if (cambiosRecursosPendientes) {
+      cambiosRecursosPendientes = false;
+      syncWithSheets(true);
+    }
   }
 
   function renderResources() {
@@ -3735,11 +3765,11 @@
     proyectos.forEach(p => {
       p.fases.forEach(f => {
         if (f.inicio && f.inicio.trim() !== '') {
-          const fechaInicio = new Date(f.inicio);
+          const fechaInicio = parseFechaLocal(f.inicio);
           if (!isNaN(fechaInicio)) fechas.push(fechaInicio);
         }
         if (f.fin && f.fin.trim() !== '') {
-          const fechaFin = new Date(f.fin);
+          const fechaFin = parseFechaLocal(f.fin);
           if (!isNaN(fechaFin)) fechas.push(fechaFin);
         }
       });
@@ -3847,8 +3877,8 @@
       );
 
       fasesValidas.forEach((fase, faseIndex) => {
-        const fechaInicio = new Date(fase.inicio);
-        const fechaFin = new Date(fase.fin);
+        const fechaInicio = parseFechaLocal(fase.inicio);
+        const fechaFin = parseFechaLocal(fase.fin);
         
         if (isNaN(fechaInicio) || isNaN(fechaFin)) return;
         
@@ -4089,6 +4119,13 @@
   // ==============================================================
   document.getElementById('closePanel').addEventListener('click', closeResourcesPanel);
   document.getElementById('panelOverlay').addEventListener('click', closeResourcesPanel);
+  
+  window.addEventListener('beforeunload', function(e) {
+    if (cambiosRecursosPendientes) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
   
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {

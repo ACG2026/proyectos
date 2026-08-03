@@ -2197,7 +2197,10 @@
     }
   }
 
-  async function guardarEnSheets(nombreHoja, datos) {
+  async function guardarEnSheets(nombreHoja, datos, intento) {
+    intento = intento || 1;
+    const MAX_INTENTOS = 3;
+    
     try {
       const url = `${GOOGLE_SHEETS_URL}?action=set&sheet=${encodeURIComponent(nombreHoja)}`;
       const response = await fetch(url, {
@@ -2213,7 +2216,12 @@
       
       return result;
     } catch (error) {
-      console.error(`Error guardando ${nombreHoja}:`, error);
+      if (intento < MAX_INTENTOS) {
+        console.warn(`Reintentando guardar "${nombreHoja}" (intento ${intento + 1}/${MAX_INTENTOS})...`);
+        await new Promise(resolve => setTimeout(resolve, 700 * intento));
+        return guardarEnSheets(nombreHoja, datos, intento + 1);
+      }
+      console.error(`Error guardando ${nombreHoja} tras ${MAX_INTENTOS} intentos:`, error);
       throw error;
     }
   }
@@ -2221,7 +2229,10 @@
   // ==============================================================
   // FUNCIONES DE CARGA DE DATOS
   // ==============================================================
-  async function cargarDesdeSheets(nombreHoja) {
+  async function cargarDesdeSheets(nombreHoja, intento) {
+    intento = intento || 1;
+    const MAX_INTENTOS = 3;
+    
     try {
       const url = `${GOOGLE_SHEETS_URL}?action=get&sheet=${encodeURIComponent(nombreHoja)}`;
       const response = await fetch(url);
@@ -2233,7 +2244,12 @@
       
       return result;
     } catch (error) {
-      console.error(`Error cargando ${nombreHoja}:`, error);
+      if (intento < MAX_INTENTOS) {
+        console.warn(`Reintentando cargar "${nombreHoja}" (intento ${intento + 1}/${MAX_INTENTOS})...`);
+        await new Promise(resolve => setTimeout(resolve, 700 * intento));
+        return cargarDesdeSheets(nombreHoja, intento + 1);
+      }
+      console.error(`Error cargando ${nombreHoja} tras ${MAX_INTENTOS} intentos:`, error);
       return { error: error.message, data: [] };
     }
   }

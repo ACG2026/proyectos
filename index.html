@@ -1813,6 +1813,7 @@
       <button class="btn-admin" onclick="openConsultaModal()">🔍 Consultar Disponibilidad</button>
     </div>
     <div class="header-actions">
+      <button class="btn-sync" id="btnRefresh" onclick="actualizarDatos()">⬇️ Actualizar</button>
       <button class="btn-sync" id="btnSync" onclick="syncWithSheets()">🔄 Sincronizar</button>
       <button class="btn-add-project" id="btnAddProject" onclick="openAddProjectModal()">
         <span class="icon">+</span> Agregar
@@ -2128,58 +2129,89 @@
     try {
       mostrarLoading('Sincronizando con Google Sheets...');
       
-      const proyectosData = proyectos.map(p => ({
-        ID: p.id,
-        Nombre: p.nombre,
-        Cliente: p.cliente
-      }));
+      const tareas = [];
       
-      const fasesData = [];
-      const asignacionesData = [];
-      proyectos.forEach(p => {
-        p.fases.forEach(f => {
-          fasesData.push({
-            FaseID: f.id || '',
-            ProyectoID: p.id,
-            Fase: f.nombre,
-            Inicio: f.inicio,
-            Fin: f.fin,
-            Color: f.color,
-            Avance: f.avance || 0,
-            Comentario: f.comentario || ''
-          });
-          
-          (f.recursos || []).forEach(r => {
-            asignacionesData.push({
+      if (dirty.proyectos) {
+        const proyectosData = proyectos.map(p => ({
+          ID: p.id,
+          Nombre: p.nombre,
+          Cliente: p.cliente
+        }));
+        tareas.push(
+          guardarEnSheets('Proyectos', proyectosData).then(() => { dirty.proyectos = false; })
+        );
+      }
+      
+      if (dirty.fases || dirty.asignaciones) {
+        const fasesData = [];
+        const asignacionesData = [];
+        proyectos.forEach(p => {
+          p.fases.forEach(f => {
+            fasesData.push({
               FaseID: f.id || '',
               ProyectoID: p.id,
-              RecursoID: r.id !== undefined && r.id !== null ? r.id : '',
-              Nombre: r.nombre || '',
-              Certificacion: r.certificacion || '',
-              Tecnica: r.tecnica || '',
-              Equipos: (r.equipos || []).join('|'),
-              Horas: r.horas || 0
+              Fase: f.nombre,
+              Inicio: f.inicio,
+              Fin: f.fin,
+              Color: f.color,
+              Avance: f.avance || 0,
+              Comentario: f.comentario || ''
+            });
+            
+            (f.recursos || []).forEach(r => {
+              asignacionesData.push({
+                FaseID: f.id || '',
+                ProyectoID: p.id,
+                RecursoID: r.id !== undefined && r.id !== null ? r.id : '',
+                Nombre: r.nombre || '',
+                Certificacion: r.certificacion || '',
+                Tecnica: r.tecnica || '',
+                Equipos: (r.equipos || []).join('|'),
+                Horas: r.horas || 0
+              });
             });
           });
         });
-      });
+        
+        if (dirty.fases) {
+          tareas.push(
+            guardarEnSheets('Fases', fasesData).then(() => { dirty.fases = false; })
+          );
+        }
+        if (dirty.asignaciones) {
+          tareas.push(
+            guardarEnSheets('Asignaciones', asignacionesData).then(() => { dirty.asignaciones = false; })
+          );
+        }
+      }
       
-      const equiposData = equiposStock.map(e => ({
-        Nombre: e.nombre,
-        Código: e.codigo || ''
-      }));
+      if (dirty.equipos) {
+        const equiposData = equiposStock.map(e => ({
+          Nombre: e.nombre,
+          Código: e.codigo || ''
+        }));
+        tareas.push(
+          guardarEnSheets('Equipos', equiposData).then(() => { dirty.equipos = false; })
+        );
+      }
       
-      const personalData = personalStock.map(p => ({
-        Nombre: p.nombre,
-        Certificacion: p.certificacion || '',
-        Estado: p.estado || 'Activo'
-      }));
+      if (dirty.personal) {
+        const personalData = personalStock.map(p => ({
+          Nombre: p.nombre,
+          Certificacion: p.certificacion || '',
+          Estado: p.estado || 'Activo'
+        }));
+        tareas.push(
+          guardarEnSheets('Recursos', personalData).then(() => { dirty.personal = false; })
+        );
+      }
       
-      await guardarEnSheets('Proyectos', proyectosData);
-      await guardarEnSheets('Fases', fasesData);
-      await guardarEnSheets('Equipos', equiposData);
-      await guardarEnSheets('Recursos', personalData);
-      await guardarEnSheets('Asignaciones', asignacionesData);
+      if (tareas.length === 0) {
+        if (!silencioso) alert('No hay cambios pendientes por sincronizar');
+        return;
+      }
+      
+      await Promise.all(tareas);
       
       saveToLocalStorage();
       if (!silencioso) {
@@ -2234,8 +2266,10 @@
     const MAX_INTENTOS = 3;
     
     try {
-      const url = `${GOOGLE_SHEETS_URL}?action=get&sheet=${encodeURIComponent(nombreHoja)}`;
-      const response = await fetch(url);
+      // Se agrega un parámetro con la hora actual (cache-busting) para evitar que el
+      // navegador devuelva una respuesta guardada en caché en vez de los datos reales.
+      const url = `${GOOGLE_SHEETS_URL}?action=get&sheet=${encodeURIComponent(nombreHoja)}&_ts=${Date.now()}`;
+      const response = await fetch(url, { cache: 'no-store' });
       
       if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
       
@@ -2325,19 +2359,76 @@
     })).filter(p => p.id && p.nombre);
   }
 
-  async function cargarDatosDespuesLogin() {
-    if (datosCargados) return;
+  let actualizando = false;
+  
+  async function actualizarDatos() {
+    if (actualizando || sincronizando) return;
+    
+    const btnRefresh = document.getElementById('btnRefresh');
+    actualizando = true;
+    btnRefresh.classList.add('syncing');
+    btnRefresh.textContent = '⬇️ Actualizando...';
     
     try {
-      mostrarLoading('Cargando datos desde Google Sheets...');
+      // Si tenías cambios locales sin subir, se guardan primero para no perderlos
+      const habiaCambiosPendientes = cambiosRecursosPendientes ||
+        dirty.proyectos || dirty.fases || dirty.equipos || dirty.personal || dirty.asignaciones;
+      
+      if (habiaCambiosPendientes) {
+        cambiosRecursosPendientes = false;
+        await syncWithSheets(true);
+      }
+      
+      datosCargados = false;
+      await cargarDatosDesdeSheetsCompleto(true);
+    } finally {
+      actualizando = false;
+      btnRefresh.classList.remove('syncing');
+      btnRefresh.textContent = '⬇️ Actualizar';
+    }
+  }
+
+  function mostrarToastActualizado() {
+    let toast = document.getElementById('toastActualizado');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'toastActualizado';
+      toast.style.cssText = `
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: linear-gradient(145deg, #1e293b, #0f172a);
+        border: 1px solid #4CAF50; color: #e2e8f0;
+        padding: 10px 18px; border-radius: 10px; font-size: 0.75rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index: 20000;
+        opacity: 0; transition: opacity 0.25s ease; pointer-events: none;
+      `;
+      document.body.appendChild(toast);
+    }
+    toast.textContent = '✅ Datos actualizados con lo último de Google Sheets';
+    toast.style.opacity = '1';
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+  }
+
+  async function cargarDatosDespuesLogin() {
+    if (datosCargados) return;
+    await cargarDatosDesdeSheetsCompleto(false);
+  }
+
+  async function cargarDatosDesdeSheetsCompleto(manual) {
+    try {
+      mostrarLoading(manual ? 'Actualizando con lo último de Google Sheets...' : 'Cargando datos desde Google Sheets...');
       
       const proyectosData = await cargarDesdeSheets('Proyectos');
       
       if (!proyectosData.error && proyectosData.data && proyectosData.data.length > 0) {
-        const fasesData = await cargarDesdeSheets('Fases');
-        const equiposData = await cargarDesdeSheets('Equipos');
-        const personalData = await cargarDesdeSheets('Recursos');
-        const asignacionesData = await cargarDesdeSheets('Asignaciones');
+        // Las 4 hojas restantes no dependen entre sí: se piden en paralelo
+        // en vez de una por una, para que cargue varias veces más rápido.
+        const [fasesData, equiposData, personalData, asignacionesData] = await Promise.all([
+          cargarDesdeSheets('Fases'),
+          cargarDesdeSheets('Equipos'),
+          cargarDesdeSheets('Recursos'),
+          cargarDesdeSheets('Asignaciones')
+        ]);
         
         const nuevosProyectos = transformarDatosSheets(proyectosData.data, fasesData.data, asignacionesData.data);
         
@@ -2366,7 +2457,19 @@
           ordenarProyectosPorID();
           saveToLocalStorage();
           datosCargados = true;
+          
+          // Lo que acabamos de traer YA es lo último de Sheets, así que no
+          // queda nada pendiente por subir hasta el próximo cambio local.
+          dirty.proyectos = false;
+          dirty.fases = false;
+          dirty.equipos = false;
+          dirty.personal = false;
+          dirty.asignaciones = false;
+          
           console.log('✅ Datos cargados desde Google Sheets');
+          if (manual) {
+            mostrarToastActualizado();
+          }
         }
       } else {
         console.log('ℹ️ No hay datos en Google Sheets, usando localStorage');
@@ -2990,6 +3093,7 @@
     
     personalStock.push({ nombre, certificacion, estado: 'Activo' });
     guardarPersonalStock();
+    marcarDirty('personal');
     document.getElementById('nuevaPersonaNombre').value = '';
     document.getElementById('nuevaPersonaCertificacion').value = '';
     renderPersonalList();
@@ -2999,6 +3103,7 @@
     const persona = personalStock[index];
     persona.estado = (persona.estado || 'Activo') === 'Activo' ? 'Caducado' : 'Activo';
     guardarPersonalStock();
+    marcarDirty('personal');
     renderPersonalList();
   }
 
@@ -3006,6 +3111,7 @@
     if (!confirm(`¿Eliminar a "${personalStock[index].nombre}" del registro?`)) return;
     personalStock.splice(index, 1);
     guardarPersonalStock();
+    marcarDirty('personal');
     renderPersonalList();
   }
 
@@ -3178,6 +3284,7 @@
     
     equiposStock.push({ nombre, codigo });
     guardarEquiposStock();
+    marcarDirty('equipos');
     document.getElementById('nuevoEquipoNombre').value = '';
     document.getElementById('nuevoEquipoCodigo').value = '';
     renderEquiposList();
@@ -3187,6 +3294,7 @@
     if (!confirm(`¿Eliminar el equipo "${equiposStock[index].nombre}"?`)) return;
     equiposStock.splice(index, 1);
     guardarEquiposStock();
+    marcarDirty('equipos');
     renderEquiposList();
   }
 
@@ -3425,6 +3533,7 @@
     limpiarCacheEquipos();
     limpiarCachePersonas();
     saveToLocalStorage();
+    marcarDirty('proyectos', 'fases', 'asignaciones');
     closeProjectModal();
     renderAll();
     
@@ -3447,6 +3556,7 @@
     limpiarCacheEquipos();
     limpiarCachePersonas();
     saveToLocalStorage();
+    marcarDirty('proyectos', 'fases', 'asignaciones');
     renderAll();
     
     await syncWithSheets();
@@ -3516,6 +3626,7 @@
     renderResources();
     saveToLocalStorage();
     cambiosRecursosPendientes = true;
+    marcarDirty('asignaciones');
   }
 
   // ==============================================================
@@ -3533,6 +3644,7 @@
     renderResources();
     saveToLocalStorage();
     cambiosRecursosPendientes = true;
+    marcarDirty('asignaciones');
   }
 
   // ==============================================================
@@ -3544,6 +3656,20 @@
   let editingResourceId = null;
   let resourceIdCounter = 100;
   let cambiosRecursosPendientes = false;
+  
+  // Marca qué pestañas tienen cambios reales pendientes de subir a Sheets.
+  // Empiezan en true para que la primera sincronización suba todo (estado seguro por defecto).
+  const dirty = {
+    proyectos: true,
+    fases: true,
+    equipos: true,
+    personal: true,
+    asignaciones: true
+  };
+  
+  function marcarDirty(...claves) {
+    claves.forEach(k => { dirty[k] = true; });
+  }
   let equiposSeleccionados = [];
 
   function openResourcesPanel(proyecto, fase, faseIndex) {
@@ -3617,6 +3743,7 @@
     currentFase.comentario = valor;
     saveToLocalStorage();
     cambiosRecursosPendientes = true;
+    marcarDirty('fases');
     const contador = document.getElementById('faseComentarioContador');
     if (contador) contador.textContent = `${valor.length}/500 ✓ guardado`;
   }

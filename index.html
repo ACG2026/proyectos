@@ -443,6 +443,120 @@
       height: 32px;
     }
 
+    #btnFiltro {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid #2d3a5e;
+      border-radius: 6px;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 2px 7px;
+      font-size: 0.7rem;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    #btnFiltro:hover {
+      background: rgba(255,255,255,0.1);
+      color: #e2e8f0;
+    }
+
+    #btnFiltro.activo {
+      border-color: #4CAF50;
+      color: #4CAF50;
+    }
+
+    #filtroActivoDot {
+      display: none;
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4CAF50;
+      border: 2px solid #0f172a;
+    }
+
+    #btnFiltro.activo #filtroActivoDot {
+      display: block;
+    }
+
+    .filtro-panel {
+      display: none;
+      position: absolute;
+      top: 38px;
+      left: 12px;
+      width: 260px;
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+      border: 1px solid #2d3a5e;
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+      z-index: 500;
+    }
+
+    .filtro-panel.open {
+      display: block;
+    }
+
+    .filtro-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 10px;
+      letter-spacing: 0.3px;
+    }
+
+    .filtro-limpiar {
+      background: none;
+      border: none;
+      color: #f87171;
+      font-size: 0.62rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 2px 4px;
+    }
+
+    .filtro-limpiar:hover {
+      text-decoration: underline;
+    }
+
+    .filtro-field {
+      margin-bottom: 8px;
+    }
+
+    .filtro-field label {
+      display: block;
+      color: #94a3b8;
+      font-size: 0.58rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 3px;
+    }
+
+    .filtro-field input,
+    .filtro-field select {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #2d3a5e;
+      border-radius: 6px;
+      color: #e2e8f0;
+      padding: 6px 8px;
+      font-size: 0.7rem;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+
+    .filtro-field input:focus,
+    .filtro-field select:focus {
+      outline: none;
+      border-color: #4a7dff;
+    }
+
     .days-row-fixed {
       display: flex;
       flex: 1;
@@ -562,6 +676,46 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .project-client-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .badge-lider {
+      font-size: 0.55rem;
+      font-weight: 700;
+      color: #cbd5e1;
+      background: rgba(148, 163, 184, 0.15);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 5px;
+      padding: 1px 5px;
+      letter-spacing: 0.3px;
+      flex-shrink: 0;
+    }
+
+    .badge-estado {
+      font-size: 0.55rem;
+      font-weight: 600;
+      border-radius: 5px;
+      padding: 1px 5px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .badge-estado.abierto {
+      color: #86efac;
+      background: rgba(76, 175, 80, 0.15);
+      border: 1px solid rgba(76, 175, 80, 0.35);
+    }
+
+    .badge-estado.cerrado {
+      color: #94a3b8;
+      background: rgba(148, 163, 184, 0.1);
+      border: 1px solid rgba(148, 163, 184, 0.25);
     }
 
     .project-actions {
@@ -1375,6 +1529,68 @@
       color: #ff6b6b;
     }
 
+    .bloqueo-section {
+      margin-top: 22px;
+      padding-top: 16px;
+      border-top: 1px solid #2d3a5e;
+    }
+
+    .bloqueo-section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 10px;
+    }
+
+    .bloqueo-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 152, 0, 0.08);
+      border: 1px solid rgba(255, 152, 0, 0.3);
+      border-radius: 8px;
+      padding: 7px 10px;
+      margin-bottom: 6px;
+    }
+
+    .bloqueo-item .bloqueo-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .bloqueo-item .bloqueo-nombre {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #ffcc80;
+    }
+
+    .bloqueo-item .bloqueo-detalle {
+      font-size: 0.6rem;
+      color: #94a3b8;
+    }
+
+    .bloqueo-item .delete-equipo-btn {
+      background: rgba(0,0,0,0.2);
+      border: none;
+      border-radius: 6px;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 0.7rem;
+    }
+
+    .bloqueo-item .delete-equipo-btn:hover {
+      background: #6b2a3a;
+      color: #ff6b6b;
+    }
+
+    .bloqueo-empty {
+      font-size: 0.65rem;
+      color: #64748b;
+      padding: 6px 0;
+    }
+
     .add-equipo-form {
       display: flex;
       gap: 8px;
@@ -1826,7 +2042,42 @@
   <div class="timeline-header-fixed" id="fixedHeader">
     <div class="timeline-header-scroll" id="headerScroll">
       <div class="timeline-inner" id="timelineInner">
-        <div class="header-corner-fixed">PROYECTO / CLIENTE</div>
+        <div class="header-corner-fixed" style="justify-content:space-between; position:relative;">
+          <span>PROYECTO / CLIENTE</span>
+          <button id="btnFiltro" onclick="toggleFiltroPanel(event)" title="Filtrar proyectos">
+            🔍<span id="filtroActivoDot"></span>
+          </button>
+          <div id="filtroPanel" class="filtro-panel">
+            <div class="filtro-panel-header">
+              <span>Filtrar proyectos</span>
+              <button onclick="limpiarFiltros()" class="filtro-limpiar">Limpiar</button>
+            </div>
+            <div class="filtro-field">
+              <label>ID</label>
+              <input type="text" id="filtroId" placeholder="Ej: 3225" oninput="aplicarFiltros()" />
+            </div>
+            <div class="filtro-field">
+              <label>Nombre del proyecto</label>
+              <input type="text" id="filtroNombre" placeholder="Ej: Inspección" oninput="aplicarFiltros()" />
+            </div>
+            <div class="filtro-field">
+              <label>Cliente</label>
+              <input type="text" id="filtroCliente" placeholder="Ej: Antamina" oninput="aplicarFiltros()" />
+            </div>
+            <div class="filtro-field">
+              <label>Líder</label>
+              <input type="text" id="filtroLider" placeholder="Ej: MM" oninput="aplicarFiltros()" />
+            </div>
+            <div class="filtro-field">
+              <label>Estado</label>
+              <select id="filtroEstado" onchange="aplicarFiltros()">
+                <option value="">Todos</option>
+                <option value="Abierto">🟢 Solo Abiertos</option>
+                <option value="Cerrado">⚪ Solo Cerrados</option>
+              </select>
+            </div>
+          </div>
+        </div>
         <div class="days-row-fixed" id="daysRowFixed"></div>
       </div>
     </div>
@@ -1876,6 +2127,29 @@
       <input type="text" id="nuevoEquipoCodigo" placeholder="Código (opcional)" />
       <button onclick="agregarEquipo()">Agregar</button>
     </div>
+    
+    <div class="bloqueo-section">
+      <div class="bloqueo-section-title">🔧 Bloqueos por mantenimiento / calibración</div>
+      <div id="bloqueosEquiposList"></div>
+      <div class="form-group" style="margin-top:8px;">
+        <label>Equipo</label>
+        <select id="nuevoBloqueoEquipoSelect"></select>
+      </div>
+      <div class="form-row-duo">
+        <div class="form-group">
+          <label>Desde</label>
+          <input type="date" id="nuevoBloqueoEquipoInicio" />
+        </div>
+        <div class="form-group">
+          <label>Hasta</label>
+          <input type="date" id="nuevoBloqueoEquipoFin" />
+        </div>
+      </div>
+      <div class="add-equipo-form">
+        <input type="text" id="nuevoBloqueoEquipoMotivo" placeholder="Motivo (ej: Calibración anual)" />
+        <button onclick="agregarBloqueoEquipo()">Bloquear</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1891,6 +2165,29 @@
       <input type="text" id="nuevaPersonaNombre" placeholder="Nombre de la persona" />
       <input type="text" id="nuevaPersonaCertificacion" placeholder="Certificación (opcional)" />
       <button onclick="agregarPersona()">Agregar</button>
+    </div>
+    
+    <div class="bloqueo-section">
+      <div class="bloqueo-section-title">🏖️ Bloqueos por vacaciones / permisos</div>
+      <div id="bloqueosPersonalList"></div>
+      <div class="form-group" style="margin-top:8px;">
+        <label>Persona</label>
+        <select id="nuevoBloqueoPersonaSelect"></select>
+      </div>
+      <div class="form-row-duo">
+        <div class="form-group">
+          <label>Desde</label>
+          <input type="date" id="nuevoBloqueoPersonaInicio" />
+        </div>
+        <div class="form-group">
+          <label>Hasta</label>
+          <input type="date" id="nuevoBloqueoPersonaFin" />
+        </div>
+      </div>
+      <div class="add-equipo-form">
+        <input type="text" id="nuevoBloqueoPersonaMotivo" placeholder="Motivo (ej: Vacaciones)" />
+        <button onclick="agregarBloqueoPersona()">Bloquear</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1952,6 +2249,20 @@
     <div class="form-group">
       <label>Cliente</label>
       <input type="text" id="projectClient" placeholder="Ej: Safe Pipe" />
+    </div>
+
+    <div class="form-row-duo">
+      <div class="form-group">
+        <label>Líder de Proyecto (iniciales)</label>
+        <input type="text" id="projectLider" placeholder="Ej: MM" maxlength="6" style="text-transform:uppercase;" />
+      </div>
+      <div class="form-group">
+        <label>Estado</label>
+        <select id="projectEstado">
+          <option value="Abierto">🟢 Abierto</option>
+          <option value="Cerrado">⚪ Cerrado</option>
+        </select>
+      </div>
     </div>
 
     <div style="margin-top:12px;">
@@ -2135,7 +2446,9 @@
         const proyectosData = proyectos.map(p => ({
           ID: p.id,
           Nombre: p.nombre,
-          Cliente: p.cliente
+          Cliente: p.cliente,
+          Lider: p.lider || '',
+          Estado: p.estado || 'Abierto'
         }));
         tareas.push(
           guardarEnSheets('Proyectos', proyectosData).then(() => { dirty.proyectos = false; })
@@ -2155,7 +2468,8 @@
               Fin: f.fin,
               Color: f.color,
               Avance: f.avance || 0,
-              Comentario: f.comentario || ''
+              Comentario: f.comentario || '',
+              Monto: (f.monto !== null && f.monto !== undefined) ? f.monto : ''
             });
             
             (f.recursos || []).forEach(r => {
@@ -2206,6 +2520,32 @@
         );
       }
       
+      if (dirty.bloqueosEquipos) {
+        const bloqueosEquiposData = bloqueosEquipos.map(b => ({
+          ID: b.id,
+          Equipo: b.equipo,
+          Inicio: b.inicio,
+          Fin: b.fin,
+          Motivo: b.motivo || ''
+        }));
+        tareas.push(
+          guardarEnSheets('BloqueosEquipos', bloqueosEquiposData).then(() => { dirty.bloqueosEquipos = false; })
+        );
+      }
+      
+      if (dirty.bloqueosPersonal) {
+        const bloqueosPersonalData = bloqueosPersonal.map(b => ({
+          ID: b.id,
+          Persona: b.persona,
+          Inicio: b.inicio,
+          Fin: b.fin,
+          Motivo: b.motivo || ''
+        }));
+        tareas.push(
+          guardarEnSheets('BloqueosPersonal', bloqueosPersonalData).then(() => { dirty.bloqueosPersonal = false; })
+        );
+      }
+      
       if (tareas.length === 0) {
         if (!silencioso) alert('No hay cambios pendientes por sincronizar');
         return;
@@ -2231,7 +2571,7 @@
 
   async function guardarEnSheets(nombreHoja, datos, intento) {
     intento = intento || 1;
-    const MAX_INTENTOS = 3;
+    const MAX_INTENTOS = 5;
     
     try {
       const url = `${GOOGLE_SHEETS_URL}?action=set&sheet=${encodeURIComponent(nombreHoja)}`;
@@ -2248,12 +2588,18 @@
       
       return result;
     } catch (error) {
-      if (intento < MAX_INTENTOS) {
-        console.warn(`Reintentando guardar "${nombreHoja}" (intento ${intento + 1}/${MAX_INTENTOS})...`);
-        await new Promise(resolve => setTimeout(resolve, 700 * intento));
+      // "Para guardar datos usa POST" es un aviso conocido de Google: a veces
+      // convierte internamente el POST en GET al despertar un contenedor nuevo.
+      // Es transitorio, así que le damos un poco más de margen antes de rendirnos.
+      const esRedirectConocido = error.message && error.message.includes('usa POST');
+      const maxIntentosReales = esRedirectConocido ? MAX_INTENTOS + 2 : MAX_INTENTOS;
+      
+      if (intento < maxIntentosReales) {
+        console.warn(`Reintentando guardar "${nombreHoja}" (intento ${intento + 1}/${maxIntentosReales})...`);
+        await new Promise(resolve => setTimeout(resolve, 600 * intento));
         return guardarEnSheets(nombreHoja, datos, intento + 1);
       }
-      console.error(`Error guardando ${nombreHoja} tras ${MAX_INTENTOS} intentos:`, error);
+      console.error(`Error guardando ${nombreHoja} tras ${maxIntentosReales} intentos:`, error);
       throw error;
     }
   }
@@ -2346,6 +2692,7 @@
           color: fase.Color || fase.color || '#2196F3',
           avance: parseInt(fase.Avance || fase.avance || 0),
           comentario: fase.Comentario || fase.comentario || '',
+          monto: (fase.Monto !== undefined && fase.Monto !== '' && fase.Monto !== null) ? parseFloat(fase.Monto) : null,
           recursos: recursos
         });
       });
@@ -2355,6 +2702,8 @@
       id: proy.ID || proy.id || '',
       nombre: proy.Nombre || proy.nombre || '',
       cliente: proy.Cliente || proy.cliente || '',
+      lider: proy.Lider || proy.lider || '',
+      estado: proy.Estado || proy.estado || 'Abierto',
       fases: fasesPorProyecto[proy.ID || proy.id || ''] || []
     })).filter(p => p.id && p.nombre);
   }
@@ -2421,13 +2770,15 @@
       const proyectosData = await cargarDesdeSheets('Proyectos');
       
       if (!proyectosData.error && proyectosData.data && proyectosData.data.length > 0) {
-        // Las 4 hojas restantes no dependen entre sí: se piden en paralelo
+        // Las 6 hojas restantes no dependen entre sí: se piden en paralelo
         // en vez de una por una, para que cargue varias veces más rápido.
-        const [fasesData, equiposData, personalData, asignacionesData] = await Promise.all([
+        const [fasesData, equiposData, personalData, asignacionesData, bloqueosEquiposData, bloqueosPersonalData] = await Promise.all([
           cargarDesdeSheets('Fases'),
           cargarDesdeSheets('Equipos'),
           cargarDesdeSheets('Recursos'),
-          cargarDesdeSheets('Asignaciones')
+          cargarDesdeSheets('Asignaciones'),
+          cargarDesdeSheets('BloqueosEquipos'),
+          cargarDesdeSheets('BloqueosPersonal')
         ]);
         
         const nuevosProyectos = transformarDatosSheets(proyectosData.data, fasesData.data, asignacionesData.data);
@@ -2452,6 +2803,28 @@
             guardarPersonalStock();
           }
           
+          if (bloqueosEquiposData.data) {
+            bloqueosEquipos = bloqueosEquiposData.data.map(b => ({
+              id: b.ID || b.id || ('be_' + (bloqueoEquipoIdCounter++)),
+              equipo: b.Equipo || b.equipo || '',
+              inicio: b.Inicio || b.inicio || '',
+              fin: b.Fin || b.fin || '',
+              motivo: b.Motivo || b.motivo || ''
+            })).filter(b => b.equipo && b.inicio && b.fin);
+            guardarBloqueosEquiposLocal();
+          }
+          
+          if (bloqueosPersonalData.data) {
+            bloqueosPersonal = bloqueosPersonalData.data.map(b => ({
+              id: b.ID || b.id || ('bp_' + (bloqueoPersonaIdCounter++)),
+              persona: b.Persona || b.persona || '',
+              inicio: b.Inicio || b.inicio || '',
+              fin: b.Fin || b.fin || '',
+              motivo: b.Motivo || b.motivo || ''
+            })).filter(b => b.persona && b.inicio && b.fin);
+            guardarBloqueosPersonalLocal();
+          }
+          
           limpiarCacheEquipos();
           limpiarCachePersonas();
           ordenarProyectosPorID();
@@ -2465,6 +2838,8 @@
           dirty.equipos = false;
           dirty.personal = false;
           dirty.asignaciones = false;
+          dirty.bloqueosEquipos = false;
+          dirty.bloqueosPersonal = false;
           
           console.log('✅ Datos cargados desde Google Sheets');
           if (manual) {
@@ -2665,15 +3040,81 @@
       btnAdd.classList.remove('disabled');
       adminBtns.style.display = 'flex';
       viewerBtns.style.display = 'none';
+      filtros.estado = '';
     } else {
       btnAdd.classList.add('disabled');
       adminBtns.style.display = 'none';
       viewerBtns.style.display = 'flex';
+      filtros.estado = 'Abierto';
     }
+    
+    const filtroEstadoSelect = document.getElementById('filtroEstado');
+    if (filtroEstadoSelect) filtroEstadoSelect.value = filtros.estado;
+    actualizarIndicadorFiltro();
   }
 
   function userCanEdit() {
     return currentUser && currentUser.role === 'admin';
+  }
+
+  // ==============================================================
+  // FILTROS DE PROYECTOS (ID, Nombre, Cliente, Líder, Estado)
+  // ==============================================================
+  const filtros = {
+    id: '',
+    nombre: '',
+    cliente: '',
+    lider: '',
+    estado: '' // '' = todos, 'Abierto', 'Cerrado'
+  };
+
+  function toggleFiltroPanel(e) {
+    if (e) e.stopPropagation();
+    document.getElementById('filtroPanel').classList.toggle('open');
+  }
+
+  document.addEventListener('click', function(e) {
+    const panel = document.getElementById('filtroPanel');
+    const btn = document.getElementById('btnFiltro');
+    if (panel && panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn) {
+      panel.classList.remove('open');
+    }
+  });
+
+  function aplicarFiltros() {
+    filtros.id = document.getElementById('filtroId').value.trim();
+    filtros.nombre = document.getElementById('filtroNombre').value.trim();
+    filtros.cliente = document.getElementById('filtroCliente').value.trim();
+    filtros.lider = document.getElementById('filtroLider').value.trim();
+    filtros.estado = document.getElementById('filtroEstado').value;
+    actualizarIndicadorFiltro();
+    renderProjects();
+  }
+
+  function limpiarFiltros() {
+    document.getElementById('filtroId').value = '';
+    document.getElementById('filtroNombre').value = '';
+    document.getElementById('filtroCliente').value = '';
+    document.getElementById('filtroLider').value = '';
+    // Al limpiar, el visualizador vuelve a su vista por defecto (solo Abiertos); el admin ve todos
+    document.getElementById('filtroEstado').value = userCanEdit() ? '' : 'Abierto';
+    aplicarFiltros();
+  }
+
+  function actualizarIndicadorFiltro() {
+    const hayFiltroActivo = !!(filtros.id || filtros.nombre || filtros.cliente || filtros.lider ||
+      (filtros.estado && !(filtros.estado === 'Abierto' && !userCanEdit())));
+    const btn = document.getElementById('btnFiltro');
+    if (btn) btn.classList.toggle('activo', hayFiltroActivo);
+  }
+
+  function proyectoCumpleFiltros(proyecto) {
+    if (filtros.id && !String(proyecto.id || '').toLowerCase().includes(filtros.id.toLowerCase())) return false;
+    if (filtros.nombre && !String(proyecto.nombre || '').toLowerCase().includes(filtros.nombre.toLowerCase())) return false;
+    if (filtros.cliente && !String(proyecto.cliente || '').toLowerCase().includes(filtros.cliente.toLowerCase())) return false;
+    if (filtros.lider && !String(proyecto.lider || '').toLowerCase().includes(filtros.lider.toLowerCase())) return false;
+    if (filtros.estado && (proyecto.estado || 'Abierto') !== filtros.estado) return false;
+    return true;
   }
 
   function checkSession() {
@@ -2785,7 +3226,33 @@
     indexEquipos = null;
   }
 
+  function verificarBloqueoEquipo(equipoNombre, fechaInicio, fechaFin) {
+    if (!bloqueosEquipos || bloqueosEquipos.length === 0) return null;
+    
+    const fechaInicioDate = parseFechaLocal(fechaInicio);
+    const fechaFinDate = parseFechaLocal(fechaFin);
+    
+    for (const bloqueo of bloqueosEquipos) {
+      if (bloqueo.equipo !== equipoNombre) continue;
+      const bInicio = parseFechaLocal(bloqueo.inicio);
+      const bFin = parseFechaLocal(bloqueo.fin);
+      
+      if (fechaInicioDate <= bFin && fechaFinDate >= bInicio) {
+        return {
+          bloqueo: true,
+          motivo: bloqueo.motivo || 'Mantenimiento / Calibración',
+          inicio: bloqueo.inicio,
+          fin: bloqueo.fin
+        };
+      }
+    }
+    return null;
+  }
+
   function verificarDisponibilidadEquipo(equipoNombre, fechaInicio, fechaFin, proyectoActualId) {
+    const bloqueo = verificarBloqueoEquipo(equipoNombre, fechaInicio, fechaFin);
+    if (bloqueo) return bloqueo;
+    
     const asignaciones = obtenerAsignacionesEquipos();
     
     if (!asignaciones[equipoNombre]) return null;
@@ -2857,6 +3324,15 @@
     
     const inicio = formatearFechaDDMM(conflicto.inicio);
     const fin = formatearFechaDDMM(conflicto.fin);
+    
+    if (conflicto.bloqueo) {
+      return `
+        <div class="equipo-ocupado-msg">
+          🔧 Este equipo está en <strong>${escapeHtml(conflicto.motivo)}</strong><br>
+          Período: ${inicio} → ${fin}
+        </div>
+      `;
+    }
     
     return `
       <div class="equipo-ocupado-msg">
@@ -2932,7 +3408,33 @@
     indexPersonas = null;
   }
 
+  function verificarBloqueoPersona(nombrePersona, fechaInicio, fechaFin) {
+    if (!bloqueosPersonal || bloqueosPersonal.length === 0) return null;
+    
+    const fechaInicioDate = parseFechaLocal(fechaInicio);
+    const fechaFinDate = parseFechaLocal(fechaFin);
+    
+    for (const bloqueo of bloqueosPersonal) {
+      if (bloqueo.persona !== nombrePersona) continue;
+      const bInicio = parseFechaLocal(bloqueo.inicio);
+      const bFin = parseFechaLocal(bloqueo.fin);
+      
+      if (fechaInicioDate <= bFin && fechaFinDate >= bInicio) {
+        return {
+          bloqueo: true,
+          motivo: bloqueo.motivo || 'Vacaciones',
+          inicio: bloqueo.inicio,
+          fin: bloqueo.fin
+        };
+      }
+    }
+    return null;
+  }
+
   function verificarDisponibilidadPersona(nombrePersona, fechaInicio, fechaFin, faseActualId) {
+    const bloqueo = verificarBloqueoPersona(nombrePersona, fechaInicio, fechaFin);
+    if (bloqueo) return bloqueo;
+    
     const asignaciones = obtenerAsignacionesPersonas();
     
     if (!asignaciones[nombrePersona]) return null;
@@ -3005,6 +3507,15 @@
     const inicio = formatearFechaDDMM(conflicto.inicio);
     const fin = formatearFechaDDMM(conflicto.fin);
     
+    if (conflicto.bloqueo) {
+      return `
+        <div class="equipo-ocupado-msg">
+          🏖️ Esta persona está de <strong>${escapeHtml(conflicto.motivo)}</strong><br>
+          Período: ${inicio} → ${fin}
+        </div>
+      `;
+    }
+    
     return `
       <div class="equipo-ocupado-msg">
         ⚠️ Esta persona está ocupada en:<br>
@@ -3045,6 +3556,8 @@
     }
     document.getElementById('personalModal').classList.add('active');
     renderPersonalList();
+    renderBloqueosPersonalList();
+    poblarSelectBloqueoPersona();
   }
 
   function closePersonalModal() {
@@ -3075,6 +3588,71 @@
       `;
     });
     container.innerHTML = html;
+  }
+
+  function poblarSelectBloqueoPersona() {
+    const select = document.getElementById('nuevoBloqueoPersonaSelect');
+    if (!select) return;
+    select.innerHTML = '<option value="">Seleccionar persona...</option>' +
+      personalStock.map(p => `<option value="${escapeHtml(p.nombre)}">${escapeHtml(p.nombre)}</option>`).join('');
+  }
+
+  function renderBloqueosPersonalList() {
+    const container = document.getElementById('bloqueosPersonalList');
+    if (!container) return;
+    
+    if (!bloqueosPersonal || bloqueosPersonal.length === 0) {
+      container.innerHTML = '<div class="bloqueo-empty">No hay bloqueos registrados</div>';
+      return;
+    }
+    
+    let html = '';
+    bloqueosPersonal.forEach((b) => {
+      html += `
+        <div class="bloqueo-item">
+          <div class="bloqueo-info">
+            <span class="bloqueo-nombre">🏖️ ${escapeHtml(b.persona)}</span>
+            <span class="bloqueo-detalle">${escapeHtml(b.motivo || 'Vacaciones')} · ${formatearFechaDDMM(b.inicio)} → ${formatearFechaDDMM(b.fin)}</span>
+          </div>
+          <button class="delete-equipo-btn" onclick="eliminarBloqueoPersona('${b.id}')" title="Quitar bloqueo">✕</button>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  function agregarBloqueoPersona() {
+    const persona = document.getElementById('nuevoBloqueoPersonaSelect').value;
+    const inicio = document.getElementById('nuevoBloqueoPersonaInicio').value;
+    const fin = document.getElementById('nuevoBloqueoPersonaFin').value;
+    const motivo = document.getElementById('nuevoBloqueoPersonaMotivo').value.trim() || 'Vacaciones';
+    
+    if (!persona) { alert('Selecciona una persona'); return; }
+    if (!inicio || !fin) { alert('Selecciona la fecha de inicio y de fin del bloqueo'); return; }
+    if (parseFechaLocal(inicio) > parseFechaLocal(fin)) { alert('La fecha de inicio no puede ser posterior a la de fin'); return; }
+    
+    bloqueosPersonal.push({
+      id: 'bp_' + (bloqueoPersonaIdCounter++) + '_' + Date.now().toString(36),
+      persona, inicio, fin, motivo
+    });
+    guardarBloqueosPersonalLocal();
+    marcarDirty('bloqueosPersonal');
+    limpiarCachePersonas();
+    
+    document.getElementById('nuevoBloqueoPersonaSelect').value = '';
+    document.getElementById('nuevoBloqueoPersonaInicio').value = '';
+    document.getElementById('nuevoBloqueoPersonaFin').value = '';
+    document.getElementById('nuevoBloqueoPersonaMotivo').value = '';
+    
+    renderBloqueosPersonalList();
+  }
+
+  function eliminarBloqueoPersona(id) {
+    bloqueosPersonal = bloqueosPersonal.filter(b => b.id !== id);
+    guardarBloqueosPersonalLocal();
+    marcarDirty('bloqueosPersonal');
+    limpiarCachePersonas();
+    renderBloqueosPersonalList();
   }
 
   function agregarPersona() {
@@ -3219,6 +3797,50 @@
     } catch (e) {}
   }
 
+  // ==============================================================
+  // BLOQUEOS DE EQUIPOS (mantenimiento / calibración)
+  // ==============================================================
+  let bloqueosEquipos = [];
+  let bloqueoEquipoIdCounter = 1;
+
+  function cargarBloqueosEquipos() {
+    try {
+      const data = localStorage.getItem('bloqueosEquipos');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && parsed.length > 0) bloqueosEquipos = parsed;
+      }
+    } catch (e) {}
+  }
+
+  function guardarBloqueosEquiposLocal() {
+    try {
+      localStorage.setItem('bloqueosEquipos', JSON.stringify(bloqueosEquipos));
+    } catch (e) {}
+  }
+
+  // ==============================================================
+  // BLOQUEOS DE PERSONAL (vacaciones / permisos)
+  // ==============================================================
+  let bloqueosPersonal = [];
+  let bloqueoPersonaIdCounter = 1;
+
+  function cargarBloqueosPersonal() {
+    try {
+      const data = localStorage.getItem('bloqueosPersonal');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && parsed.length > 0) bloqueosPersonal = parsed;
+      }
+    } catch (e) {}
+  }
+
+  function guardarBloqueosPersonalLocal() {
+    try {
+      localStorage.setItem('bloqueosPersonal', JSON.stringify(bloqueosPersonal));
+    } catch (e) {}
+  }
+
   function getEquiposNombres() {
     return equiposStock.map(e => e.nombre);
   }
@@ -3239,6 +3861,8 @@
     }
     document.getElementById('equiposModal').classList.add('active');
     renderEquiposList();
+    renderBloqueosEquiposList();
+    poblarSelectBloqueoEquipo();
   }
 
   function closeEquiposModal() {
@@ -3266,6 +3890,71 @@
       `;
     });
     container.innerHTML = html;
+  }
+
+  function poblarSelectBloqueoEquipo() {
+    const select = document.getElementById('nuevoBloqueoEquipoSelect');
+    if (!select) return;
+    select.innerHTML = '<option value="">Seleccionar equipo...</option>' +
+      equiposStock.map(e => `<option value="${escapeHtml(e.nombre)}">${escapeHtml(e.nombre)}</option>`).join('');
+  }
+
+  function renderBloqueosEquiposList() {
+    const container = document.getElementById('bloqueosEquiposList');
+    if (!container) return;
+    
+    if (!bloqueosEquipos || bloqueosEquipos.length === 0) {
+      container.innerHTML = '<div class="bloqueo-empty">No hay bloqueos registrados</div>';
+      return;
+    }
+    
+    let html = '';
+    bloqueosEquipos.forEach((b) => {
+      html += `
+        <div class="bloqueo-item">
+          <div class="bloqueo-info">
+            <span class="bloqueo-nombre">🔧 ${escapeHtml(b.equipo)}</span>
+            <span class="bloqueo-detalle">${escapeHtml(b.motivo || 'Mantenimiento')} · ${formatearFechaDDMM(b.inicio)} → ${formatearFechaDDMM(b.fin)}</span>
+          </div>
+          <button class="delete-equipo-btn" onclick="eliminarBloqueoEquipo('${b.id}')" title="Quitar bloqueo">✕</button>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  function agregarBloqueoEquipo() {
+    const equipo = document.getElementById('nuevoBloqueoEquipoSelect').value;
+    const inicio = document.getElementById('nuevoBloqueoEquipoInicio').value;
+    const fin = document.getElementById('nuevoBloqueoEquipoFin').value;
+    const motivo = document.getElementById('nuevoBloqueoEquipoMotivo').value.trim() || 'Mantenimiento / Calibración';
+    
+    if (!equipo) { alert('Selecciona un equipo'); return; }
+    if (!inicio || !fin) { alert('Selecciona la fecha de inicio y de fin del bloqueo'); return; }
+    if (parseFechaLocal(inicio) > parseFechaLocal(fin)) { alert('La fecha de inicio no puede ser posterior a la de fin'); return; }
+    
+    bloqueosEquipos.push({
+      id: 'be_' + (bloqueoEquipoIdCounter++) + '_' + Date.now().toString(36),
+      equipo, inicio, fin, motivo
+    });
+    guardarBloqueosEquiposLocal();
+    marcarDirty('bloqueosEquipos');
+    limpiarCacheEquipos();
+    
+    document.getElementById('nuevoBloqueoEquipoSelect').value = '';
+    document.getElementById('nuevoBloqueoEquipoInicio').value = '';
+    document.getElementById('nuevoBloqueoEquipoFin').value = '';
+    document.getElementById('nuevoBloqueoEquipoMotivo').value = '';
+    
+    renderBloqueosEquiposList();
+  }
+
+  function eliminarBloqueoEquipo(id) {
+    bloqueosEquipos = bloqueosEquipos.filter(b => b.id !== id);
+    guardarBloqueosEquiposLocal();
+    marcarDirty('bloqueosEquipos');
+    limpiarCacheEquipos();
+    renderBloqueosEquiposList();
   }
 
   function agregarEquipo() {
@@ -3337,6 +4026,8 @@
     document.getElementById('projectId').value = '';
     document.getElementById('projectName').value = '';
     document.getElementById('projectClient').value = '';
+    document.getElementById('projectLider').value = '';
+    document.getElementById('projectEstado').value = 'Abierto';
     document.getElementById('fasesContainer').innerHTML = '';
     faseCounter = 0;
     addFaseToModal();
@@ -3354,6 +4045,8 @@
     document.getElementById('projectId').value = proyecto.id || '';
     document.getElementById('projectName').value = proyecto.nombre.replace(/^\d+\s*-\s*/, '') || '';
     document.getElementById('projectClient').value = proyecto.cliente || '';
+    document.getElementById('projectLider').value = proyecto.lider || '';
+    document.getElementById('projectEstado').value = proyecto.estado || 'Abierto';
     
     document.getElementById('fasesContainer').innerHTML = '';
     faseCounter = 0;
@@ -3390,6 +4083,8 @@
     // Convertir fechas para los inputs date (formato flexible)
     const inicioVal = faseData ? convertirFechaParaInput(faseData.inicio) : '';
     const finVal = faseData ? convertirFechaParaInput(faseData.fin) : '';
+    const esFacturacion = faseData && faseData.nombre === 'Facturación';
+    const montoVal = faseData && faseData.monto ? faseData.monto : '';
     
     faseDiv.innerHTML = `
       <input type="hidden" id="fase-${faseId}-persistid" value="${faseData && faseData.id ? faseData.id : ''}" />
@@ -3423,6 +4118,10 @@
           <input type="date" id="fase-${faseId}-fin" value="${finVal}" placeholder="DD/MM/YYYY" />
         </div>
       </div>
+      <div class="form-group fase-monto-group" id="fase-${faseId}-monto-group" style="display:${esFacturacion ? 'block' : 'none'}; margin-top:8px;">
+        <label>💵 Monto a facturar (USD)</label>
+        <input type="number" id="fase-${faseId}-monto" value="${montoVal}" min="0" step="0.01" placeholder="Ej: 15000.00" />
+      </div>
     `;
     
     container.appendChild(faseDiv);
@@ -3435,10 +4134,14 @@
   function updateFaseColor(faseId) {
     const select = document.getElementById(`fase-${faseId}-nombre`);
     const colorInput = document.getElementById(`fase-${faseId}-color`);
+    const montoGroup = document.getElementById(`fase-${faseId}-monto-group`);
     if (select && colorInput) {
       const selectedOption = select.options[select.selectedIndex];
       if (selectedOption && selectedOption.dataset.color) {
         colorInput.value = selectedOption.dataset.color;
+      }
+      if (montoGroup) {
+        montoGroup.style.display = (selectedOption && selectedOption.value === 'Facturación') ? 'block' : 'none';
       }
     }
   }
@@ -3464,6 +4167,8 @@
     const projectId = document.getElementById('projectId').value.trim();
     const nombre = document.getElementById('projectName').value.trim();
     const cliente = document.getElementById('projectClient').value.trim();
+    const lider = document.getElementById('projectLider').value.trim().toUpperCase();
+    const estado = document.getElementById('projectEstado').value || 'Abierto';
     
     if (!projectId || !nombre || !cliente) {
       alert('Por favor complete todos los campos del proyecto');
@@ -3482,6 +4187,9 @@
       const fin = document.getElementById(`fase-${id}-fin`).value;
       const persistIdEl = document.getElementById(`fase-${id}-persistid`);
       const persistId = persistIdEl && persistIdEl.value ? persistIdEl.value : generarFaseId();
+      const montoInput = document.getElementById(`fase-${id}-monto`);
+      const monto = (nombreFase === 'Facturación' && montoInput && montoInput.value !== '')
+        ? parseFloat(montoInput.value) : null;
       
       if (!inicio || !fin) {
         alert(`La fase "${nombreFase}" debe tener fecha de inicio y fin`);
@@ -3496,7 +4204,8 @@
         inicio: inicio,
         fin: fin,
         recursos: [],
-        comentario: ''
+        comentario: '',
+        monto: monto
       });
     }
     
@@ -3509,6 +4218,8 @@
       id: projectId,
       nombre: nombre,
       cliente: cliente,
+      lider: lider,
+      estado: estado,
       fases: fases
     };
     
@@ -3664,7 +4375,9 @@
     fases: true,
     equipos: true,
     personal: true,
-    asignaciones: true
+    asignaciones: true,
+    bloqueosEquipos: true,
+    bloqueosPersonal: true
   };
   
   function marcarDirty(...claves) {
@@ -4200,6 +4913,8 @@
     const canEdit = userCanEdit();
 
     proyectos.forEach((proyecto, proyectoIndex) => {
+      if (!proyectoCumpleFiltros(proyecto)) return;
+      
       const rowDiv = document.createElement("div");
       rowDiv.className = "project-row";
 
@@ -4209,9 +4924,21 @@
       const infoDiv = document.createElement("div");
       infoDiv.className = "project-info";
       
+      const estadoProyecto = proyecto.estado || 'Abierto';
+      const estadoBadge = estadoProyecto === 'Cerrado'
+        ? `<span class="badge-estado cerrado">⚪ Cerrado</span>`
+        : `<span class="badge-estado abierto">🟢 Abierto</span>`;
+      const liderBadge = proyecto.lider
+        ? `<span class="badge-lider" title="Líder de proyecto">${escapeHtml(proyecto.lider)}</span>`
+        : '';
+      
       infoDiv.innerHTML = `
         <div class="project-name">${escapeHtml(proyecto.id)} - ${escapeHtml(proyecto.nombre)}</div>
-        <div class="project-client">${escapeHtml(proyecto.cliente)}</div>
+        <div class="project-client-row">
+          <span class="project-client">${escapeHtml(proyecto.cliente)}</span>
+          ${liderBadge}
+          ${estadoBadge}
+        </div>
       `;
       
       wrapperDiv.appendChild(infoDiv);
@@ -4482,6 +5209,8 @@
 
   cargarEquiposStock();
   cargarPersonalStock();
+  cargarBloqueosEquipos();
+  cargarBloqueosPersonal();
   loadFromLocalStorage();
   ordenarProyectosPorID();
 

@@ -483,16 +483,14 @@
 
     .filtro-panel {
       display: none;
-      position: absolute;
-      top: 38px;
-      left: 12px;
+      position: fixed;
       width: 260px;
       background: linear-gradient(145deg, #1e293b, #0f172a);
       border: 1px solid #2d3a5e;
       border-radius: 12px;
       padding: 12px 14px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.9);
-      z-index: 500;
+      z-index: 5000;
     }
 
     .filtro-panel.open {
@@ -2042,7 +2040,7 @@
   <div class="timeline-header-fixed" id="fixedHeader">
     <div class="timeline-header-scroll" id="headerScroll">
       <div class="timeline-inner" id="timelineInner">
-        <div class="header-corner-fixed" style="justify-content:space-between; position:relative;">
+        <div class="header-corner-fixed" style="justify-content:space-between;">
           <span>PROYECTO / CLIENTE</span>
           <button id="btnFiltro" onclick="toggleFiltroPanel(event)" title="Filtrar proyectos">
             🔍<span id="filtroActivoDot"></span>
@@ -3070,7 +3068,25 @@
 
   function toggleFiltroPanel(e) {
     if (e) e.stopPropagation();
-    document.getElementById('filtroPanel').classList.toggle('open');
+    const panel = document.getElementById('filtroPanel');
+    const abrira = !panel.classList.contains('open');
+    
+    if (abrira) {
+      const btn = document.getElementById('btnFiltro');
+      const rect = btn.getBoundingClientRect();
+      const panelWidth = 260;
+      
+      let left = rect.left;
+      if (left + panelWidth > window.innerWidth - 10) {
+        left = window.innerWidth - panelWidth - 10;
+      }
+      if (left < 10) left = 10;
+      
+      panel.style.top = `${rect.bottom + 8}px`;
+      panel.style.left = `${left}px`;
+    }
+    
+    panel.classList.toggle('open');
   }
 
   document.addEventListener('click', function(e) {

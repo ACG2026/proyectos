@@ -4093,7 +4093,61 @@
   // ==============================================================
   // saveProject CORREGIDO
   // ==============================================================
-  async function saveProject() {
+    // ==============================================================
+  // VALIDACIÓN DE CONFLICTOS DE RECURSOS AL GUARDAR PROYECTO
+  // ==============================================================
+  function validarConflictosRecursosProyecto(proyecto) {
+    const conflictos = [];
+
+    for (const fase of proyecto.fases) {
+      if (!fase.recursos || fase.recursos.length === 0) continue;
+
+      for (const recurso of fase.recursos) {
+        // Validar persona
+        if (recurso.nombre) {
+          const conflictoPersona = verificarDisponibilidadPersona(
+            recurso.nombre,
+            fase.inicio,
+            fase.fin,
+            fase.id
+          );
+          if (conflictoPersona) {
+            conflictos.push({
+              tipo: 'persona',
+              nombre: recurso.nombre,
+              fase: fase.nombre,
+              conflicto: conflictoPersona
+            });
+          }
+        }
+
+        // Validar equipos
+        if (recurso.equipos && recurso.equipos.length > 0) {
+          for (const equipo of recurso.equipos) {
+            const conflictoEquipo = verificarDisponibilidadEquipo(
+              equipo,
+              fase.inicio,
+              fase.fin,
+              proyecto.id
+            );
+            if (conflictoEquipo) {
+              conflictos.push({
+                tipo: 'equipo',
+                nombre: equipo,
+                fase: fase.nombre,
+                recurso: recurso.nombre,
+                conflicto: conflictoEquipo
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return conflictos;
+  }
+
+async function saveProject() {
     if (!userCanEdit()) {
       alert('No tienes permisos para guardar cambios');
       return;
@@ -4157,11 +4211,11 @@
       estado: estado,
       fases: fases
     };
-    
+
+    // Restaurar recursos y comentarios de fases existentes al editar
     if (editingProjectIndex >= 0) {
       const oldProject = proyectos[editingProjectIndex];
       newProject.fases.forEach((fase, idx) => {
-        // Emparejar por id persistente de la fase; si no existe (datos antiguos), usar el índice
         const oldFase = oldProject.fases.find(f => f.id && f.id === fase.id) || oldProject.fases[idx];
         if (oldFase && oldFase.recursos) {
           fase.recursos = oldFase.recursos;
@@ -4170,6 +4224,32 @@
           fase.comentario = oldFase.comentario;
         }
       });
+    }
+
+    // VALIDAR CONFLICTOS DE RECURSOS antes de guardar
+    const conflictos = validarConflictosRecursosProyecto(newProject);
+    if (conflictos.length > 0) {
+      const lista = conflictos.map(c => {
+        const inicio = formatearFechaDDMM(c.conflicto.inicio);
+        const fin = formatearFechaDDMM(c.conflicto.fin);
+        if (c.tipo === 'persona') {
+          if (c.conflicto.bloqueo) {
+            return `• 👤 ${c.nombre} en "${c.fase}": ${c.conflicto.motivo} (${inicio} → ${fin})`;
+          }
+          return `• 👤 ${c.nombre} en "${c.fase}": ocupado en "${c.conflicto.proyecto}" - ${c.conflicto.fase} (${inicio} → ${fin})`;
+        } else {
+          if (c.conflicto.bloqueo) {
+            return `• 🔧 ${c.nombre} (asignado a ${c.recurso}) en "${c.fase}": ${c.conflicto.motivo} (${inicio} → ${fin})`;
+          }
+          return `• 🔧 ${c.nombre} (asignado a ${c.recurso}) en "${c.fase}": ocupado en "${c.conflicto.proyecto}" - ${c.conflicto.fase} (${inicio} → ${fin})`;
+        }
+      }).join('\n');
+
+      alert(`❌ No se puede guardar el proyecto.\n\nLos siguientes recursos tienen conflictos de disponibilidad:\n\n${lista}\n\nPor favor ajusta las fechas o reasigna los recursos.`);
+      return;
+    }
+
+    if (editingProjectIndex >= 0) {
       proyectos[editingProjectIndex] = newProject;
     } else {
       proyectos.push(newProject);
@@ -4689,12 +4769,32 @@
     
     let html = '';
     
-    if (fase.comentario && fase.comentario.trim()) {
+        // Mostrar información de facturación si es fase Facturación y tiene monto
+    if (fase.nombre === 'Facturación' && fase.monto !== null && fase.monto !== undefined && !isNaN(fase.monto)) {
+      const avance = parseInt(fase.avance) || 0;
+      const montoTotal = parseFloat(fase.monto);
+      const montoParcial = (montoTotal * avance / 100);
+      const montoFormateado = montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const parcialFormateado = montoParcial.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      html += `
+        <div style="background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.35); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;">
+          <div style="font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; margin-bottom: 3px;">💵 Facturación</div>
+          <div style="font-size: 0.85rem; font-weight: 700; color: #4ade80;">$ ${parcialFormateado} USD</div>
+          <div style="font-size: 0.55rem; color: #64748b; margin-top: 2px;">Monto total: $ ${montoFormateado} · Avance: ${avance}%</div>
+        </div>
+      `;
+    }
+
+if (fase.comentario && fase.comentario.trim()) {
       html += `<div class="tooltip-comentario">💬 ${escapeHtml(fase.comentario)}</div>`;
     }
     
     if (recursos.length === 0) {
-      html += `<div class="tooltip-empty">No hay recursos asignados</div>`;
+      // En fase Facturación no mostrar "sin recursos" porque aquí solo va facturación/comentarios
+      if (fase.nombre !== 'Facturación') {
+        html += `<div class="tooltip-empty">No hay recursos asignados</div>`;
+      }
     } else {
       recursos.forEach((res) => {
         const inicial = res.nombre ? res.nombre.charAt(0).toUpperCase() : '?';

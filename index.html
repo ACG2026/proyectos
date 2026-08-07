@@ -453,6 +453,7 @@
       font-size: 0.7rem;
       position: relative;
       flex-shrink: 0;
+      transition: all 0.2s;
     }
 
     #btnFiltro:hover {
@@ -463,6 +464,7 @@
     #btnFiltro.activo {
       border-color: #4CAF50;
       color: #4CAF50;
+      background: rgba(76, 175, 80, 0.1);
     }
 
     #filtroActivoDot {
@@ -479,80 +481,6 @@
 
     #btnFiltro.activo #filtroActivoDot {
       display: block;
-    }
-
-    .filtro-panel {
-      display: none;
-      position: fixed;
-      width: 260px;
-      background: linear-gradient(145deg, #1e293b, #0f172a);
-      border: 1px solid #2d3a5e;
-      border-radius: 12px;
-      padding: 12px 14px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.9);
-      z-index: 5000;
-    }
-
-    .filtro-panel.open {
-      display: block;
-    }
-
-    .filtro-panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.7rem;
-      font-weight: 700;
-      color: #e2e8f0;
-      margin-bottom: 10px;
-      letter-spacing: 0.3px;
-    }
-
-    .filtro-limpiar {
-      background: none;
-      border: none;
-      color: #f87171;
-      font-size: 0.62rem;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 2px 4px;
-    }
-
-    .filtro-limpiar:hover {
-      text-decoration: underline;
-    }
-
-    .filtro-field {
-      margin-bottom: 8px;
-    }
-
-    .filtro-field label {
-      display: block;
-      color: #94a3b8;
-      font-size: 0.58rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      margin-bottom: 3px;
-    }
-
-    .filtro-field input,
-    .filtro-field select {
-      width: 100%;
-      background: #0f172a;
-      border: 1px solid #2d3a5e;
-      border-radius: 6px;
-      color: #e2e8f0;
-      padding: 6px 8px;
-      font-size: 0.7rem;
-      font-family: inherit;
-      box-sizing: border-box;
-    }
-
-    .filtro-field input:focus,
-    .filtro-field select:focus {
-      outline: none;
-      border-color: #4a7dff;
     }
 
     .days-row-fixed {
@@ -2043,39 +1971,9 @@
       <div class="timeline-inner" id="timelineInner">
         <div class="header-corner-fixed" style="justify-content:space-between;">
           <span>PROYECTO / CLIENTE</span>
-          <button id="btnFiltro" onclick="toggleFiltroPanel(event)" title="Filtrar proyectos">
+          <button id="btnFiltro" onclick="openFiltroModal()" title="Filtrar proyectos">
             🔍<span id="filtroActivoDot"></span>
           </button>
-          <div id="filtroPanel" class="filtro-panel">
-            <div class="filtro-panel-header">
-              <span>Filtrar proyectos</span>
-              <button onclick="limpiarFiltros()" class="filtro-limpiar">Limpiar</button>
-            </div>
-            <div class="filtro-field">
-              <label>ID</label>
-              <input type="text" id="filtroId" placeholder="Ej: 3225" oninput="aplicarFiltros()" />
-            </div>
-            <div class="filtro-field">
-              <label>Nombre del proyecto</label>
-              <input type="text" id="filtroNombre" placeholder="Ej: Inspección" oninput="aplicarFiltros()" />
-            </div>
-            <div class="filtro-field">
-              <label>Cliente</label>
-              <input type="text" id="filtroCliente" placeholder="Ej: Antamina" oninput="aplicarFiltros()" />
-            </div>
-            <div class="filtro-field">
-              <label>Líder</label>
-              <input type="text" id="filtroLider" placeholder="Ej: MM" oninput="aplicarFiltros()" />
-            </div>
-            <div class="filtro-field">
-              <label>Estado</label>
-              <select id="filtroEstado" onchange="aplicarFiltros()">
-                <option value="">Todos</option>
-                <option value="Abierto">🟢 Solo Abiertos</option>
-                <option value="Cerrado">⚪ Solo Cerrados</option>
-              </select>
-            </div>
-          </div>
         </div>
         <div class="days-row-fixed" id="daysRowFixed"></div>
       </div>
@@ -2223,6 +2121,47 @@
       </div>
       <button class="save-btn" style="width:100%; margin-top:14px;" onclick="ejecutarConsultaDisponibilidad()">Consultar</button>
       <div id="consultaResultado" style="margin-top:12px; display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE FILTROS -->
+<div class="modal-overlay" id="filtroModal">
+  <div class="modal-content" style="max-width: 420px;">
+    <div class="modal-header">
+      <h2>🔍 Filtrar Proyectos</h2>
+      <button class="close-btn" onclick="closeFiltroModal()">✕</button>
+    </div>
+    <div style="padding: 4px 0 8px;">
+      <div class="form-group">
+        <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase;">ID del proyecto</label>
+        <input type="text" id="filtroId" placeholder="Ej: 3225" />
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase;">Nombre del proyecto</label>
+        <input type="text" id="filtroNombre" placeholder="Ej: Inspección" />
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase;">Cliente</label>
+        <input type="text" id="filtroCliente" placeholder="Ej: Antamina" />
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase;">Líder</label>
+        <input type="text" id="filtroLider" placeholder="Ej: MM" />
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase;">Estado</label>
+        <select id="filtroEstado">
+          <option value="">Todos</option>
+          <option value="Abierto">🟢 Solo Abiertos</option>
+          <option value="Cerrado">⚪ Solo Cerrados</option>
+        </select>
+      </div>
+      <div class="modal-actions" style="margin-top:16px; padding-top:12px;">
+        <button class="btn-save-project" onclick="aplicarFiltros()">Aplicar filtros</button>
+        <button class="btn-cancel-modal" onclick="limpiarFiltros()">Limpiar</button>
+        <button class="btn-cancel-modal" onclick="closeFiltroModal()">Cerrar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3067,51 +3006,24 @@
     estado: '' // '' = todos, 'Abierto', 'Cerrado'
   };
 
-  function toggleFiltroPanel(e) {
-    if (e) e.stopPropagation();
-    const panel = document.getElementById('filtroPanel');
-    const abrira = !panel.classList.contains('open');
-    
-    if (abrira) {
-      const btn = document.getElementById('btnFiltro');
-      const rect = btn.getBoundingClientRect();
-      const panelWidth = 260;
-      
-      let left = rect.left;
-      if (left + panelWidth > window.innerWidth - 10) {
-        left = window.innerWidth - panelWidth - 10;
-      }
-      if (left < 10) left = 10;
-      
-      panel.style.top = `${rect.bottom + 8}px`;
-      panel.style.left = `${left}px`;
-    }
-    
-    panel.classList.toggle('open');
+  function openFiltroModal() {
+    document.getElementById('filtroModal').classList.add('active');
   }
 
-  document.addEventListener('click', function(e) {
-    const panel = document.getElementById('filtroPanel');
-    const btn = document.getElementById('btnFiltro');
-    if (panel && panel.classList.contains('open') && !panel.contains(e.target) && !btn.contains(e.target)) {
-      panel.classList.remove('open');
-    }
-  });
-
-  let filtroTimeout = null;
+  function closeFiltroModal() {
+    document.getElementById('filtroModal').classList.remove('active');
+  }
 
   function aplicarFiltros() {
-    if (filtroTimeout) clearTimeout(filtroTimeout);
-    filtroTimeout = setTimeout(() => {
-      filtros.id = document.getElementById('filtroId').value.trim();
-      filtros.nombre = document.getElementById('filtroNombre').value.trim();
-      filtros.cliente = document.getElementById('filtroCliente').value.trim();
-      filtros.lider = document.getElementById('filtroLider').value.trim();
-      filtros.estado = document.getElementById('filtroEstado').value;
-      actualizarIndicadorFiltro();
-      hideResourcesTooltip();
-      renderProjects();
-    }, 200);
+    filtros.id = document.getElementById('filtroId').value.trim();
+    filtros.nombre = document.getElementById('filtroNombre').value.trim();
+    filtros.cliente = document.getElementById('filtroCliente').value.trim();
+    filtros.lider = document.getElementById('filtroLider').value.trim();
+    filtros.estado = document.getElementById('filtroEstado').value;
+    actualizarIndicadorFiltro();
+    hideResourcesTooltip();
+    renderProjects();
+    closeFiltroModal();
   }
 
   function limpiarFiltros() {
@@ -5072,12 +4984,13 @@
       });
     });
 
+    // Mensaje cuando ningún proyecto cumple los filtros
     if (rowsContainer.children.length === 0) {
       const emptyDiv = document.createElement('div');
       emptyDiv.className = 'project-row';
       emptyDiv.innerHTML = `
         <div class="project-info-wrapper" style="width:100%; justify-content:center;">
-          <div style="color:#64748b; font-size:0.75rem; padding:12px;">
+          <div style="color:#64748b; font-size:0.75rem; padding:16px; text-align:center;">
             🔍 No se encontraron proyectos con los filtros aplicados
           </div>
         </div>
@@ -5305,7 +5218,16 @@
     }
   });
 
+  document.getElementById('filtroModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeFiltroModal();
+    }
+  });
+
   document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeFiltroModal();
+    }
     if (e.key === 'Enter' && !document.getElementById('loginContainer').classList.contains('hidden')) {
       handleLogin();
     }

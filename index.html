@@ -1954,6 +1954,7 @@
       }
     }
   </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -3092,19 +3093,25 @@
   document.addEventListener('click', function(e) {
     const panel = document.getElementById('filtroPanel');
     const btn = document.getElementById('btnFiltro');
-    if (panel && panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn) {
+    if (panel && panel.classList.contains('open') && !panel.contains(e.target) && !btn.contains(e.target)) {
       panel.classList.remove('open');
     }
   });
 
+  let filtroTimeout = null;
+
   function aplicarFiltros() {
-    filtros.id = document.getElementById('filtroId').value.trim();
-    filtros.nombre = document.getElementById('filtroNombre').value.trim();
-    filtros.cliente = document.getElementById('filtroCliente').value.trim();
-    filtros.lider = document.getElementById('filtroLider').value.trim();
-    filtros.estado = document.getElementById('filtroEstado').value;
-    actualizarIndicadorFiltro();
-    renderProjects();
+    if (filtroTimeout) clearTimeout(filtroTimeout);
+    filtroTimeout = setTimeout(() => {
+      filtros.id = document.getElementById('filtroId').value.trim();
+      filtros.nombre = document.getElementById('filtroNombre').value.trim();
+      filtros.cliente = document.getElementById('filtroCliente').value.trim();
+      filtros.lider = document.getElementById('filtroLider').value.trim();
+      filtros.estado = document.getElementById('filtroEstado').value;
+      actualizarIndicadorFiltro();
+      hideResourcesTooltip();
+      renderProjects();
+    }, 200);
   }
 
   function limpiarFiltros() {
@@ -4980,11 +4987,8 @@
 
       const celdasArray = Array.from(cellsTrack.querySelectorAll(".track-cell"));
 
-      const fasesValidas = proyecto.fases.filter(f => 
-        f.inicio && f.inicio.trim() !== '' && f.fin && f.fin.trim() !== ''
-      );
-
-      fasesValidas.forEach((fase, faseIndex) => {
+      proyecto.fases.forEach((fase, faseIndex) => {
+        if (!fase.inicio || fase.inicio.trim() === '' || !fase.fin || fase.fin.trim() === '') return;
         const fechaInicio = parseFechaLocal(fase.inicio);
         const fechaFin = parseFechaLocal(fase.fin);
         
@@ -5067,6 +5071,19 @@
         }
       });
     });
+
+    if (rowsContainer.children.length === 0) {
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'project-row';
+      emptyDiv.innerHTML = `
+        <div class="project-info-wrapper" style="width:100%; justify-content:center;">
+          <div style="color:#64748b; font-size:0.75rem; padding:12px;">
+            🔍 No se encontraron proyectos con los filtros aplicados
+          </div>
+        </div>
+      `;
+      rowsContainer.appendChild(emptyDiv);
+    }
   }
 
   function escapeHtml(str) {

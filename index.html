@@ -4166,7 +4166,7 @@
     const ff = parseFechaLocal(fechaFin);
 
     for (const proyecto of proyectos) {
-      if (proyecto.id === proyectoActualId) continue;
+      if (String(proyecto.id) === String(proyectoActualId)) continue;
       for (const fase of proyecto.fases) {
         if (!fase.recursos) continue;
         for (const recurso of fase.recursos) {
@@ -4193,7 +4193,7 @@
     const ff = parseFechaLocal(fechaFin);
 
     for (const proyecto of proyectos) {
-      if (proyecto.id === proyectoActualId) continue;
+      if (String(proyecto.id) === String(proyectoActualId)) continue;
       for (const fase of proyecto.fases) {
         if (!fase.recursos) continue;
         for (const recurso of fase.recursos) {

@@ -3112,7 +3112,7 @@
   // ==============================================================
   let cacheAsignacionesEquipos = null;
   let cacheTimestamp = 0;
-  const CACHE_DURACION = 5000;
+  const CACHE_DURACION = 0;
   let indexEquipos = null;
   let timeoutVerificacionEquipo = null;
 
@@ -3155,12 +3155,12 @@
         proyectoId: entry.proyecto.id,
         proyectoNombre: entry.proyecto.nombre,
         faseNombre: entry.fase.nombre,
-        inicio: entry.fase.inicio,
-        fin: entry.fase.fin,
+        inicio: entry.recurso.inicio || entry.fase.inicio,
+        fin: entry.recurso.fin || entry.fase.fin,
         recursoNombre: entry.recurso.nombre
       }));
     }
-    
+
     cacheAsignacionesEquipos = asignaciones;
     cacheTimestamp = ahora;
     
@@ -3346,11 +3346,11 @@
         proyectoNombre: entry.proyecto.nombre,
         faseNombre: entry.fase.nombre,
         faseId: entry.fase.id,
-        inicio: entry.fase.inicio,
-        fin: entry.fase.fin
+        inicio: entry.recurso.inicio || entry.fase.inicio,
+        fin: entry.recurso.fin || entry.fase.fin
       }));
     }
-    
+
     cacheAsignacionesPersonas = asignaciones;
     cachePersonasTimestamp = ahora;
     
@@ -4527,7 +4527,11 @@ async function saveProject() {
       syncWithSheets(true);
     }
     
-    currentProject = proyecto;
+        // Limpiar caches para asegurar datos frescos al abrir el panel
+    limpiarCacheEquipos();
+    limpiarCachePersonas();
+
+currentProject = proyecto;
     currentFase = fase;
     currentFaseIndex = faseIndex;
     

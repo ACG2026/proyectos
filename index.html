@@ -504,6 +504,12 @@
       justify-content: center;
     }
 
+    .day-cell-fixed.weekend {
+      background: #b91c1c !important;
+      color: #ffffff !important;
+      font-weight: 700;
+    }
+
     .body-scroll-wrapper {
       flex: 1;
       overflow: auto;
@@ -2161,6 +2167,10 @@
         <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase;">Recurso / Inspector</label>
         <input type="text" id="filtroRecurso" placeholder="Ej: Juan Pérez" />
       </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase;">Equipo</label>
+        <input type="text" id="filtroEquipo" placeholder="Ej: OMNISCAN" />
+      </div>
       <div class="modal-actions" style="margin-top:16px; padding-top:12px;">
         <button class="btn-save-project" onclick="aplicarFiltros()">Aplicar filtros</button>
         <button class="btn-cancel-modal" onclick="limpiarFiltros()">Limpiar</button>
@@ -3029,6 +3039,7 @@
     filtros.lider = document.getElementById('filtroLider').value.trim();
     filtros.estado = document.getElementById('filtroEstado').value;
     filtros.recurso = document.getElementById('filtroRecurso').value.trim();
+    filtros.equipo = document.getElementById('filtroEquipo').value.trim();
     actualizarIndicadorFiltro();
     hideResourcesTooltip();
     renderProjects();
@@ -3041,13 +3052,14 @@
     document.getElementById('filtroCliente').value = '';
     document.getElementById('filtroLider').value = '';
     document.getElementById('filtroRecurso').value = '';
+    document.getElementById('filtroEquipo').value = '';
     // Al limpiar, el visualizador vuelve a su vista por defecto (solo Abiertos); el admin ve todos
     document.getElementById('filtroEstado').value = userCanEdit() ? '' : 'Abierto';
     aplicarFiltros();
   }
 
   function actualizarIndicadorFiltro() {
-    const hayFiltroActivo = !!(filtros.id || filtros.nombre || filtros.cliente || filtros.lider || filtros.recurso ||
+    const hayFiltroActivo = !!(filtros.id || filtros.nombre || filtros.cliente || filtros.lider || filtros.recurso || filtros.equipo ||
       (filtros.estado && !(filtros.estado === 'Abierto' && !userCanEdit())));
     const btn = document.getElementById('btnFiltro');
     if (btn) btn.classList.toggle('activo', hayFiltroActivo);
@@ -3066,6 +3078,16 @@
         )
       );
       if (!tieneRecurso) return false;
+    }
+    if (filtros.equipo) {
+      const tieneEquipo = proyecto.fases.some(f =>
+        (f.recursos || []).some(r =>
+          (r.equipos || []).some(eq =>
+            eq.toLowerCase().includes(filtros.equipo.toLowerCase())
+          )
+        )
+      );
+      if (!tieneEquipo) return false;
     }
     return true;
   }
@@ -3214,6 +3236,11 @@
     const fechaFinDate = parseFechaLocal(fechaFin);
     
     for (const asignacion of asignaciones[equipoNombre]) {
+      // Si es el mismo proyecto que estamos editando, no cuenta como conflicto
+      if (proyectoActualId && String(asignacion.proyectoId) === String(proyectoActualId)) {
+        continue;
+      }
+
       if (asignacion.proyectoId === proyectoActualId) {
         if (asignacion.inicio === fechaInicio && asignacion.fin === fechaFin) {
           continue;
@@ -3239,7 +3266,7 @@
   }
 
   function getEquipoDisponibilidad(equipoNombre, fechaInicio, fechaFin, proyectoId) {
-    const conflicto = verificarDisponibilidadEquipo(equipoNombre, fechaInicio, fechaFin, proyectoId);
+    const conflicto = verificarDisponibilidadEquipo(equipoNombre, fechaInicio, fechaFin, null, proyectoId);
     return {
       disponible: conflicto === null,
       conflicto: conflicto
@@ -3384,7 +3411,7 @@
     return null;
   }
 
-  function verificarDisponibilidadPersona(nombrePersona, fechaInicio, fechaFin, faseActualId) {
+  function verificarDisponibilidadPersona(nombrePersona, fechaInicio, fechaFin, faseActualId, proyectoActualId) {
     const bloqueo = verificarBloqueoPersona(nombrePersona, fechaInicio, fechaFin);
     if (bloqueo) return bloqueo;
     
@@ -3399,6 +3426,10 @@
       // Si es la misma fase que estamos editando, no cuenta como conflicto consigo misma
       if (faseActualId && asignacion.faseId === faseActualId) {
         continue;
+      // Si es el mismo proyecto que estamos editando, no cuenta como conflicto
+      if (proyectoActualId && String(asignacion.proyectoId) === String(proyectoActualId)) {
+        continue;
+      }
       }
       
       const asigInicio = parseFechaLocal(asignacion.inicio);
@@ -3418,19 +3449,19 @@
     return null;
   }
 
-  function getPersonaDisponibilidad(nombrePersona, fechaInicio, fechaFin, faseId) {
-    const conflicto = verificarDisponibilidadPersona(nombrePersona, fechaInicio, fechaFin, faseId);
+  function getPersonaDisponibilidad(nombrePersona, fechaInicio, fechaFin, faseId, proyectoActualId) {
+    const conflicto = verificarDisponibilidadPersona(nombrePersona, fechaInicio, fechaFin, faseId, proyectoActualId);
     return {
       disponible: conflicto === null,
       conflicto: conflicto
     };
   }
 
-  function getPersonalActivoConDisponibilidad(fechaInicio, fechaFin, faseId) {
+  function getPersonalActivoConDisponibilidad(fechaInicio, fechaFin, faseId, proyectoActualId) {
     return personalStock
       .filter(p => (p.estado || 'Activo') === 'Activo')
       .map(persona => {
-        const disponibilidad = getPersonaDisponibilidad(persona.nombre, fechaInicio, fechaFin, faseId);
+        const disponibilidad = getPersonaDisponibilidad(persona.nombre, fechaInicio, fechaFin, faseId, proyectoActualId);
         return {
           ...persona,
           disponible: disponibilidad.disponible,
@@ -3439,10 +3470,10 @@
       });
   }
 
-  function getPersonalSelectOptionsConDisponibilidad(selected, fechaInicio, fechaFin, faseId) {
+  function getPersonalSelectOptionsConDisponibilidad(selected, fechaInicio, fechaFin, faseId, proyectoActualId) {
     let html = '<option value="">Seleccionar persona...</option>';
     
-    const personalConEstado = getPersonalActivoConDisponibilidad(fechaInicio, fechaFin, faseId);
+    const personalConEstado = getPersonalActivoConDisponibilidad(fechaInicio, fechaFin, faseId, proyectoActualId);
     
     personalConEstado.forEach(p => {
       const sel = selected === p.nombre ? 'selected' : '';
@@ -4630,7 +4661,7 @@ async function saveProject() {
           <label style="color:#94a3b8; font-size:0.6rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Persona</label>
           <div class="form-row">
             <select id="resNombre" onchange="verificarPersonaSeleccionada()">
-              ${getPersonalSelectOptionsConDisponibilidad('', currentFase.inicio, currentFase.fin, currentFase.id)}
+              ${getPersonalSelectOptionsConDisponibilidad('', currentFase.inicio, currentFase.fin, currentFase.id, currentProject.id)}
             </select>
           </div>
           <div id="personaDisponibilidadMsg" style="margin-top:4px;"></div>
@@ -4809,7 +4840,7 @@ async function saveProject() {
     const form = document.getElementById('resourceForm');
     if (form) {
       form.classList.add('active');
-      document.getElementById('resNombre').innerHTML = getPersonalSelectOptionsConDisponibilidad('', currentFase.inicio, currentFase.fin, currentFase.id);
+      document.getElementById('resNombre').innerHTML = getPersonalSelectOptionsConDisponibilidad('', currentFase.inicio, currentFase.fin, currentFase.id, currentProject.id);
       document.getElementById('resCertificacion').value = '';
       document.getElementById('resTecnica').value = '';
       document.getElementById('resHoras').value = '';
@@ -4836,7 +4867,7 @@ async function saveProject() {
     const form = document.getElementById('resourceForm');
     if (form) {
       form.classList.add('active');
-      document.getElementById('resNombre').innerHTML = getPersonalSelectOptionsConDisponibilidad(recurso.nombre || '', currentFase.inicio, currentFase.fin, currentFase.id);
+      document.getElementById('resNombre').innerHTML = getPersonalSelectOptionsConDisponibilidad(recurso.nombre || '', currentFase.inicio, currentFase.fin, currentFase.id, currentProject.id);
       document.getElementById('resCertificacion').value = recurso.certificacion || '';
       document.getElementById('resTecnica').value = recurso.tecnica || '';
       document.getElementById('resHoras').value = recurso.horas || '';
@@ -5042,7 +5073,10 @@ if (fase.comentario && fase.comentario.trim()) {
     
     for (let i = 0; i <= DIAS_TOTALES; i++) {
       const dayDiv = document.createElement("div");
-      dayDiv.className = "day-cell-fixed";
+      let d = new Date(inicioGlobal);
+      d.setDate(d.getDate() + i);
+      const esFinde = d.getDay() === 0 || d.getDay() === 6;
+      dayDiv.className = "day-cell-fixed" + (esFinde ? " weekend" : "");
       dayDiv.innerText = formatearFechaCabecera(inicioGlobal, i);
       daysRowFixed.appendChild(dayDiv);
     }

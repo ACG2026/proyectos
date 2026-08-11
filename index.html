@@ -1889,6 +1889,7 @@
     }
   </style>
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 
@@ -3140,44 +3141,48 @@
   // ==============================================================
   function obtenerAsignacionesEquipos() {
     const ahora = Date.now();
-    
+
     if (cacheAsignacionesEquipos && (ahora - cacheTimestamp) < CACHE_DURACION) {
       return cacheAsignacionesEquipos;
     }
-    
+
     if (!indexEquipos) {
       construirIndexEquipos();
     }
-    
+
     const asignaciones = {};
     for (const [equipoNombre, entradas] of indexEquipos) {
-      asignaciones[equipoNombre] = entradas.map(entry => ({
-        proyectoId: entry.proyecto.id,
-        proyectoNombre: entry.proyecto.nombre,
-        faseNombre: entry.fase.nombre,
-        inicio: entry.recurso.inicio || entry.fase.inicio,
-        fin: entry.recurso.fin || entry.fase.fin,
-        recursoNombre: entry.recurso.nombre
-      }));
+      asignaciones[equipoNombre] = entradas
+        .filter(entry => entry && entry.proyecto && entry.fase && entry.recurso)
+        .map(entry => ({
+          proyectoId: entry.proyecto.id,
+          proyectoNombre: entry.proyecto.nombre,
+          faseNombre: entry.fase.nombre,
+          inicio: entry.recurso.inicio || entry.fase.inicio,
+          fin: entry.recurso.fin || entry.fase.fin,
+          recursoNombre: entry.recurso.nombre
+        }));
     }
 
     cacheAsignacionesEquipos = asignaciones;
     cacheTimestamp = ahora;
-    
+
     return asignaciones;
   }
 
   function construirIndexEquipos() {
     const index = new Map();
-    
+
     proyectos.forEach(proyecto => {
+      if (!proyecto || !proyecto.fases) return;
       proyecto.fases.forEach(fase => {
-        if (!fase.recursos) return;
-        
+        if (!fase || !fase.recursos) return;
+
         fase.recursos.forEach(recurso => {
-          if (!recurso.equipos) return;
-          
+          if (!recurso || !recurso.equipos || !Array.isArray(recurso.equipos)) return;
+
           recurso.equipos.forEach(equipoNombre => {
+            if (!equipoNombre) return;
             if (!index.has(equipoNombre)) {
               index.set(equipoNombre, []);
             }
@@ -3190,7 +3195,7 @@
         });
       });
     });
-    
+
     indexEquipos = index;
     return index;
   }
@@ -3227,29 +3232,23 @@
   function verificarDisponibilidadEquipo(equipoNombre, fechaInicio, fechaFin, proyectoActualId) {
     const bloqueo = verificarBloqueoEquipo(equipoNombre, fechaInicio, fechaFin);
     if (bloqueo) return bloqueo;
-    
+
     const asignaciones = obtenerAsignacionesEquipos();
-    
+
     if (!asignaciones[equipoNombre]) return null;
-    
+
     const fechaInicioDate = parseFechaLocal(fechaInicio);
     const fechaFinDate = parseFechaLocal(fechaFin);
-    
+
     for (const asignacion of asignaciones[equipoNombre]) {
       // Si es el mismo proyecto que estamos editando, no cuenta como conflicto
       if (proyectoActualId && String(asignacion.proyectoId) === String(proyectoActualId)) {
         continue;
       }
 
-      if (asignacion.proyectoId === proyectoActualId) {
-        if (asignacion.inicio === fechaInicio && asignacion.fin === fechaFin) {
-          continue;
-        }
-      }
-      
       const asigInicio = parseFechaLocal(asignacion.inicio);
       const asigFin = parseFechaLocal(asignacion.fin);
-      
+
       if (fechaInicioDate <= asigFin && fechaFinDate >= asigInicio) {
         return {
           proyecto: asignacion.proyectoNombre,
@@ -3261,7 +3260,7 @@
         };
       }
     }
-    
+
     return null;
   }
 
@@ -3330,43 +3329,46 @@
   // ==============================================================
   function obtenerAsignacionesPersonas() {
     const ahora = Date.now();
-    
+
     if (cacheAsignacionesPersonas && (ahora - cachePersonasTimestamp) < CACHE_DURACION) {
       return cacheAsignacionesPersonas;
     }
-    
+
     if (!indexPersonas) {
       construirIndexPersonas();
     }
-    
+
     const asignaciones = {};
     for (const [nombrePersona, entradas] of indexPersonas) {
-      asignaciones[nombrePersona] = entradas.map(entry => ({
-        proyectoId: entry.proyecto.id,
-        proyectoNombre: entry.proyecto.nombre,
-        faseNombre: entry.fase.nombre,
-        faseId: entry.fase.id,
-        inicio: entry.recurso.inicio || entry.fase.inicio,
-        fin: entry.recurso.fin || entry.fase.fin
-      }));
+      asignaciones[nombrePersona] = entradas
+        .filter(entry => entry && entry.proyecto && entry.fase && entry.recurso)
+        .map(entry => ({
+          proyectoId: entry.proyecto.id,
+          proyectoNombre: entry.proyecto.nombre,
+          faseNombre: entry.fase.nombre,
+          faseId: entry.fase.id,
+          inicio: entry.recurso.inicio || entry.fase.inicio,
+          fin: entry.recurso.fin || entry.fase.fin
+        }));
     }
 
     cacheAsignacionesPersonas = asignaciones;
     cachePersonasTimestamp = ahora;
-    
+
     return asignaciones;
   }
 
   function construirIndexPersonas() {
     const index = new Map();
-    
+
     proyectos.forEach(proyecto => {
+      if (!proyecto || !proyecto.fases) return;
       proyecto.fases.forEach(fase => {
-        if (!fase.recursos) return;
-        
+        if (!fase || !fase.recursos) return;
+
         fase.recursos.forEach(recurso => {
-          if (!recurso.nombre) return;
-          
+          if (!recurso || !recurso.nombre) return;
+
           if (!index.has(recurso.nombre)) {
             index.set(recurso.nombre, []);
           }
@@ -3378,7 +3380,7 @@
         });
       });
     });
-    
+
     indexPersonas = index;
     return index;
   }
@@ -3415,27 +3417,27 @@
   function verificarDisponibilidadPersona(nombrePersona, fechaInicio, fechaFin, faseActualId, proyectoActualId) {
     const bloqueo = verificarBloqueoPersona(nombrePersona, fechaInicio, fechaFin);
     if (bloqueo) return bloqueo;
-    
+
     const asignaciones = obtenerAsignacionesPersonas();
-    
+
     if (!asignaciones[nombrePersona]) return null;
-    
+
     const fechaInicioDate = parseFechaLocal(fechaInicio);
     const fechaFinDate = parseFechaLocal(fechaFin);
-    
+
     for (const asignacion of asignaciones[nombrePersona]) {
       // Si es la misma fase que estamos editando, no cuenta como conflicto consigo misma
       if (faseActualId && asignacion.faseId === faseActualId) {
         continue;
+      }
       // Si es el mismo proyecto que estamos editando, no cuenta como conflicto
       if (proyectoActualId && String(asignacion.proyectoId) === String(proyectoActualId)) {
         continue;
       }
-      }
-      
+
       const asigInicio = parseFechaLocal(asignacion.inicio);
       const asigFin = parseFechaLocal(asignacion.fin);
-      
+
       if (fechaInicioDate <= asigFin && fechaFinDate >= asigInicio) {
         return {
           proyecto: asignacion.proyectoNombre,
@@ -3446,7 +3448,7 @@
         };
       }
     }
-    
+
     return null;
   }
 

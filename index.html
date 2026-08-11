@@ -4526,21 +4526,20 @@ async function saveProject() {
       cambiosRecursosPendientes = false;
       syncWithSheets(true);
     }
-    
-        // Limpiar caches para asegurar datos frescos al abrir el panel
+
     limpiarCacheEquipos();
     limpiarCachePersonas();
 
-currentProject = proyecto;
+    currentProject = proyecto;
     currentFase = fase;
     currentFaseIndex = faseIndex;
-    
+
     document.getElementById('panelTitle').textContent = `Recursos: ${fase.nombre}`;
     document.getElementById('panelSubtitle').textContent = `${proyecto.nombre} | ${proyecto.cliente}`;
-    
+
     renderPanelComentario();
     renderResources();
-    
+
     document.getElementById('resourcesPanel').classList.add('open');
     document.getElementById('panelOverlay').classList.add('active');
   }

@@ -2376,6 +2376,7 @@
   </style>
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 
@@ -2463,8 +2464,7 @@
   
 
   <div class="main-container" id="mainContainer" style="display:none;">
-<div class="dashboard-title">📊 Dashboards</div>
-  <div class="dashboards-wrapper">
+<div class="dashboards-wrapper">
     <div class="stats-bar" id="statsBar">
       <div style="font-size:0.6rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.6px; padding-right:8px; border-right:1px solid #2d3a5e; margin-right:4px; display:flex; align-items:center;">
         👷<br>Actividad<br>Inspectores
@@ -2784,6 +2784,22 @@
           <option value="Abierto">🟢 Abierto</option>
           <option value="Cerrado">⚪ Cerrado</option>
         </select>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top:12px;">
+      <label>📋 Orden de Compra / Servicio (Monto USD)</label>
+      <input type="number" id="projectMontoOC" placeholder="Ej: 25000.00" step="0.01" min="0" />
+    </div>
+
+    <div class="form-row-duo" style="margin-top:10px;">
+      <div class="form-group">
+        <label>👤 Contacto</label>
+        <input type="text" id="projectContacto" placeholder="Nombre del contacto" />
+      </div>
+      <div class="form-group">
+        <label>📧 Correo</label>
+        <input type="email" id="projectCorreo" placeholder="correo@ejemplo.com" />
       </div>
     </div>
 
@@ -3234,6 +3250,9 @@
       cliente: proy.Cliente || proy.cliente || '',
       lider: proy.Lider || proy.lider || '',
       estado: proy.Estado || proy.estado || 'Abierto',
+      montoOC: (proy.MontoOC !== undefined && proy.MontoOC !== '' && proy.MontoOC !== null) ? parseFloat(proy.MontoOC) : null,
+      contacto: proy.Contacto || proy.contacto || '',
+      correo: proy.Correo || proy.correo || '',
       fases: fasesPorProyecto[proy.ID || proy.id || ''] || []
     })).filter(p => p.id && p.nombre);
   }
@@ -3410,6 +3429,11 @@
         id: "3155",
         nombre: "Am Fitness For Purpose Metrogas Chile",
         cliente: "Safe Pipe",
+        lider: "MM",
+        estado: "Abierto",
+        montoOC: 15000.00,
+        contacto: "Juan Pérez",
+        correo: "juan@safepipe.cl",
         fases: [
           { 
             nombre: "Recepción", 
@@ -3434,6 +3458,11 @@
         id: "3174",
         nombre: "Analisis Corridas Ili Pdvsa",
         cliente: "Safe Pipe",
+        lider: "JL",
+        estado: "Abierto",
+        montoOC: null,
+        contacto: "",
+        correo: "",
         fases: [
           { 
             nombre: "Recepción", 
@@ -4675,6 +4704,9 @@
     document.getElementById('projectClient').value = proyecto.cliente || '';
     document.getElementById('projectLider').value = proyecto.lider || '';
     document.getElementById('projectEstado').value = proyecto.estado || 'Abierto';
+    document.getElementById('projectMontoOC').value = proyecto.montoOC || '';
+    document.getElementById('projectContacto').value = proyecto.contacto || '';
+    document.getElementById('projectCorreo').value = proyecto.correo || '';
     
     document.getElementById('fasesContainer').innerHTML = '';
     faseCounter = 0;
@@ -4899,6 +4931,9 @@ async function saveProject() {
     const cliente = document.getElementById('projectClient').value.trim();
     const lider = document.getElementById('projectLider').value.trim().toUpperCase();
     const estado = document.getElementById('projectEstado').value || 'Abierto';
+    const montoOC = document.getElementById('projectMontoOC').value.trim();
+    const contacto = document.getElementById('projectContacto').value.trim();
+    const correo = document.getElementById('projectCorreo').value.trim();
     
     if (!projectId || !nombre || !cliente) {
       alert('Por favor complete todos los campos del proyecto');
@@ -4950,6 +4985,9 @@ async function saveProject() {
       cliente: cliente,
       lider: lider,
       estado: estado,
+      montoOC: montoOC ? parseFloat(montoOC) : null,
+      contacto: contacto,
+      correo: correo,
       fases: fases
     };
 
@@ -5544,6 +5582,47 @@ async function saveProject() {
   const tooltip = document.getElementById('resourcesTooltip');
   let tooltipHideTimeout = null;
 
+
+  // ==============================================================
+  // ESTADO DE RECURSO EN FECHA (activo / caducado / nuevo)
+  // ==============================================================
+  function getEstadoRecursoEnFecha(nombrePersona, fechaInicioFase, fechaFinFase) {
+    const persona = personalStock.find(p => p.nombre === nombrePersona);
+    if (!persona) return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
+
+    const fechaRef = parseFechaLocal(fechaInicioFase);
+
+    // Verificar si es nuevo (fecha de inicio de contratación posterior a la fase)
+    if (persona.fechaInicio) {
+      const fechaInicioContrato = parseFechaLocal(persona.fechaInicio);
+      if (fechaRef < fechaInicioContrato) {
+        return { 
+          activo: false, 
+          estado: 'Nuevo', 
+          clase: 'nuevo', 
+          texto: `Ingresa ${formatearFechaDDMM(persona.fechaInicio)}`, 
+          contar: false 
+        };
+      }
+    }
+
+    // Verificar si está caducado
+    if ((persona.estado || 'Activo') !== 'Activo' && persona.fechaCaducidad) {
+      const fechaCad = parseFechaLocal(persona.fechaCaducidad);
+      if (fechaRef > fechaCad) {
+        return { 
+          activo: false, 
+          estado: 'Caducado', 
+          clase: 'caducado', 
+          texto: `Caducó ${formatearFechaDDMM(persona.fechaCaducidad)}`, 
+          contar: false 
+        };
+      }
+    }
+
+    return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
+  }
+
   function showResourcesTooltip(e, proyecto, fase) {
     if (tooltipHideTimeout) {
       clearTimeout(tooltipHideTimeout);
@@ -5553,8 +5632,15 @@ async function saveProject() {
     const recursos = fase.recursos || [];
     const content = document.getElementById('tooltipContent');
     
+    const recursosFiltrados = recursos.map(r => ({
+      ...r,
+      _estado: getEstadoRecursoEnFecha(r.nombre, fase.inicio, fase.fin)
+    }));
+    const recursosActivos = recursosFiltrados.filter(r => r._estado.contar);
+
     document.getElementById('tooltipTitle').textContent = fase.nombre;
-    document.getElementById('tooltipBadge').textContent = recursos.length;
+    document.getElementById('tooltipBadge').textContent = recursosActivos.length + (recursosFiltrados.length > recursosActivos.length ? `+${recursosFiltrados.length - recursosActivos.length}` : '');
+    document.getElementById('tooltipBadge').title = recursosActivos.length + ' activos' + (recursosFiltrados.length > recursosActivos.length ? `, ${recursosFiltrados.length - recursosActivos.length} no activos` : '');
     
     let html = '';
     
@@ -5763,13 +5849,25 @@ if (fase.comentario && fase.comentario.trim()) {
         ? `<span class="badge-lider" title="Líder de proyecto">${escapeHtml(proyecto.lider)}</span>`
         : '';
       
+      const montoFormateado = proyecto.montoOC 
+        ? '$' + proyecto.montoOC.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' USD'
+        : '';
+      const contactoHtml = proyecto.contacto 
+        ? `<span class="project-client" title="${escapeHtml(proyecto.correo || '')}">👤 ${escapeHtml(proyecto.contacto)}${proyecto.correo ? ' · 📧' : ''}</span>` 
+        : '';
+
       infoDiv.innerHTML = `
-        <div class="project-name">${escapeHtml(proyecto.id)} - ${escapeHtml(proyecto.nombre)}</div>
-        <div class="project-client-row">
-          <span class="project-client">${escapeHtml(proyecto.cliente)}</span>
+        <div class="project-name">${escapeHtml(proyecto.id)} — ${escapeHtml(proyecto.nombre)}</div>
+        <div class="project-client-row" style="margin-top:2px;">
+          <span class="project-client">🏢 ${escapeHtml(proyecto.cliente)}</span>
           ${liderBadge}
           ${estadoBadge}
         </div>
+        ${(montoFormateado || contactoHtml) ? `
+        <div class="project-client-row" style="margin-top:3px; flex-wrap:wrap; gap:4px;">
+          ${montoFormateado ? `<span style="font-size:0.55rem; background:linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05)); color:#4ade80; border:1px solid rgba(34,197,94,0.3); border-radius:5px; padding:1px 6px; font-weight:600; letter-spacing:0.2px;">💵 ${montoFormateado}</span>` : ''}
+          ${contactoHtml}
+        </div>` : ''}
       `;
       
       wrapperDiv.appendChild(infoDiv);
@@ -5859,15 +5957,25 @@ if (fase.comentario && fase.comentario.trim()) {
           openResourcesPanel(proy, faseData, fIndex);
         });
 
-        const hasResources = fase.recursos && fase.recursos.length > 0;
-        
+                const recursosActivosFase = (fase.recursos || []).filter(r => {
+          const est = getEstadoRecursoEnFecha(r.nombre, fase.inicio, fase.fin);
+          return est.contar;
+        });
+        const hasResources = recursosActivosFase.length > 0;
+        const totalRecursos = (fase.recursos || []).length;
+        const badgeRecursos = hasResources 
+          ? (totalRecursos > recursosActivosFase.length 
+            ? `<div class="phase-resource-count">👥 ${recursosActivosFase.length}<span style="opacity:0.6; font-size:0.35rem;">/${totalRecursos}</span></div>`
+            : `<div class="phase-resource-count">👥 ${recursosActivosFase.length}</div>`)
+          : '';
+
         bloque.innerHTML = `
           <div class="phase-name">${escapeHtml(fase.nombre)}</div>
           <div class="phase-stats">
             <span>${avance}%</span>
             <span>${fechaDisplay}</span>
           </div>
-          ${hasResources ? `<div class="phase-resource-count">👥 ${fase.recursos.length}</div>` : ''}
+          ${badgeRecursos}
         `;
 
         if (startCellIndex >= 0 && startCellIndex < celdasArray.length) {

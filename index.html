@@ -1887,6 +1887,293 @@
         padding: 10px 14px;
       }
     }
+  
+    /* ============================================ */
+    /* STATS BAR - DASHBOARD DE OCUPACIÓN */
+    /* ============================================ */
+    .stats-bar {
+      display: flex;
+      gap: 12px;
+      padding: 10px 18px;
+      background: linear-gradient(180deg, #0f172a 0%, #0b1120 100%);
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+      z-index: 180;
+      overflow-x: auto;
+    }
+
+    .stats-bar::-webkit-scrollbar { height: 3px; }
+    .stats-bar::-webkit-scrollbar-track { background: transparent; }
+    .stats-bar::-webkit-scrollbar-thumb { background: #2d3a5e; border-radius: 4px; }
+
+    .stat-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+      border: 1px solid #2d3a5e;
+      border-radius: 10px;
+      padding: 8px 16px;
+      min-width: 140px;
+      transition: all 0.25s ease;
+      cursor: default;
+    }
+
+    .stat-card:hover {
+      border-color: #4a5a7a;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .stat-card.stat-ocupado { border-left: 3px solid #f97316; }
+    .stat-card.stat-libre { border-left: 3px solid #22c55e; }
+    .stat-card.stat-total { border-left: 3px solid #60a5fa; }
+
+    .stat-icon {
+      font-size: 1.3rem;
+      line-height: 1;
+      filter: grayscale(0.2);
+    }
+
+    .stat-data {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+
+    .stat-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-label {
+      font-size: 0.6rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      font-weight: 600;
+    }
+
+    /* ============================================ */
+    /* MEJORAS MODAL PERSONAL */
+    /* ============================================ */
+    .personal-card {
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+      border: 1px solid #2d3a5e;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .personal-card:hover {
+      border-color: #4a5a7a;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .personal-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+
+    .personal-card-name {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #f1f5f9;
+    }
+
+    .personal-card-badge {
+      font-size: 0.55rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .personal-card-badge.activo {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .personal-card-badge.caducado {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .personal-card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      font-size: 0.65rem;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+
+    .personal-card-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .personal-card-meta .meta-label {
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .personal-card-dates {
+      display: flex;
+      gap: 10px;
+      font-size: 0.6rem;
+      color: #64748b;
+      margin-bottom: 8px;
+      padding: 4px 8px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 6px;
+      border: 1px solid rgba(45, 58, 94, 0.3);
+    }
+
+    .personal-card-dates span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .personal-card-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .personal-card-actions button {
+      background: #2d3a5e;
+      border: 1px solid #3b4a6a;
+      color: #94a3b8;
+      padding: 4px 10px;
+      border-radius: 5px;
+      font-size: 0.65rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+
+    .personal-card-actions button:hover {
+      background: #3b4a6a;
+      color: #fff;
+    }
+
+    .personal-card-actions .btn-caducar:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+
+    .personal-card-actions .btn-reactivar:hover {
+      background: rgba(34, 197, 94, 0.2);
+      border-color: rgba(34, 197, 94, 0.4);
+      color: #4ade80;
+    }
+
+    .personal-card-actions .btn-eliminar:hover {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #ef4444;
+    }
+
+    .personal-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .personal-form-grid .form-group {
+      margin-bottom: 0;
+    }
+
+    .personal-form-grid .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .personal-form-grid input,
+    .personal-form-grid select {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid #2d3a5e;
+      color: #e2e8f0;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .personal-form-grid input:focus,
+    .personal-form-grid select:focus {
+      outline: none;
+      border-color: #6b7c9e;
+    }
+
+    .personal-form-grid label {
+      display: block;
+      color: #94a3b8;
+      font-size: 0.6rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .caducidad-section {
+      background: rgba(239, 68, 68, 0.05);
+      border: 1px dashed rgba(239, 68, 68, 0.3);
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 8px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .caducidad-section label {
+      color: #f87171;
+    }
+
+    .btn-guardar-persona {
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(135deg, #4a5a7a, #6b7c9e);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 6px;
+    }
+
+    .btn-guardar-persona:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(74, 90, 122, 0.4);
+    }
+
+    @media (max-width: 768px) {
+      .stats-bar { padding: 8px 12px; gap: 8px; }
+      .stat-card { min-width: 110px; padding: 6px 10px; }
+      .stat-value { font-size: 0.95rem; }
+      .personal-form-grid { grid-template-columns: 1fr; }
+    }
+
   </style>
 <base target="_blank">
 <base target="_blank">
@@ -1972,7 +2259,34 @@
   </div>
 </div>
 
-<div class="main-container" id="mainContainer" style="display:none;">
+
+  <!-- DASHBOARD DE OCUPACIÓN -->
+  
+
+  <div class="main-container" id="mainContainer" style="display:none;">
+<div class="stats-bar" id="statsBar">
+    <div class="stat-card stat-total">
+      <div class="stat-icon">👷</div>
+      <div class="stat-data">
+        <span class="stat-value" id="statTotal">0</span>
+        <span class="stat-label">Total Inspectores</span>
+      </div>
+    </div>
+    <div class="stat-card stat-ocupado">
+      <div class="stat-icon">🔴</div>
+      <div class="stat-data">
+        <span class="stat-value" id="statOcupados">0</span>
+        <span class="stat-label">Ocupados Hoy</span>
+      </div>
+    </div>
+    <div class="stat-card stat-libre">
+      <div class="stat-icon">🟢</div>
+      <div class="stat-data">
+        <span class="stat-value" id="statLibres">0</span>
+        <span class="stat-label">Libres Hoy</span>
+      </div>
+    </div>
+  </div>
   <div class="timeline-header-fixed" id="fixedHeader">
     <div class="timeline-header-scroll" id="headerScroll">
       <div class="timeline-inner" id="timelineInner">
@@ -2064,13 +2378,43 @@
       <h2>👷 Administración de Personal</h2>
       <button class="close-btn" onclick="closePersonalModal()">✕</button>
     </div>
-    <div id="personalList"></div>
-    <div class="add-equipo-form">
-      <input type="text" id="nuevaPersonaNombre" placeholder="Nombre de la persona" />
-      <input type="text" id="nuevaPersonaCertificacion" placeholder="Certificación (opcional)" />
-      <button onclick="agregarPersona()">Agregar</button>
+
+    <!-- FORMULARIO DE REGISTRO -->
+    <div style="background: rgba(255,255,255,0.02); border: 1px solid #2d3a5e; border-radius: 10px; padding: 14px; margin-bottom: 14px;">
+      <div style="font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">➕ Registrar Nuevo Personal</div>
+      <div class="personal-form-grid">
+        <div class="form-group full-width">
+          <label>Nombre completo</label>
+          <input type="text" id="nuevaPersonaNombre" placeholder="Ej: Juan Pérez López" />
+        </div>
+        <div class="form-group">
+          <label>Certificación</label>
+          <input type="text" id="nuevaPersonaCertificacion" placeholder="Ej: UT Nivel II" />
+        </div>
+        <div class="form-group">
+          <label>Cargo / Rol</label>
+          <input type="text" id="nuevaPersonaCargo" placeholder="Ej: Inspector Principal" />
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="nuevaPersonaTipo">
+            <option value="HSE">🛡️ HSE</option>
+            <option value="Campo">🏗️ Campo</option>
+            <option value="Técnica">🔧 Técnica</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>📅 Inicio de contratación</label>
+          <input type="date" id="nuevaPersonaFechaInicio" />
+        </div>
+      </div>
+      <button class="btn-guardar-persona" onclick="agregarPersona()">💾 Guardar Personal</button>
     </div>
-    
+
+    <!-- LISTA DE PERSONAL -->
+    <div style="font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">📋 Personal Registrado</div>
+    <div id="personalList"></div>
+
     <div class="bloqueo-section">
       <div class="bloqueo-section-title">🏖️ Bloqueos por vacaciones / permisos</div>
       <div id="bloqueosPersonalList"></div>
@@ -2095,6 +2439,8 @@
     </div>
   </div>
 </div>
+
+
 
 <!-- MODAL DE CONSULTA DE DISPONIBILIDAD (solo Visualizador) -->
 <div class="modal-overlay" id="consultaModal">
@@ -2468,6 +2814,10 @@
         const personalData = personalStock.map(p => ({
           Nombre: p.nombre,
           Certificacion: p.certificacion || '',
+          Cargo: p.cargo || '',
+          Tipo: p.tipo || 'Campo',
+          FechaInicio: p.fechaInicio || '',
+          FechaCaducidad: p.fechaCaducidad || '',
           Estado: p.estado || 'Activo'
         }));
         tareas.push(
@@ -2755,6 +3105,10 @@
             personalStock = personalData.data.map(p => ({
               nombre: p.Nombre || p.nombre || '',
               certificacion: p.Certificacion || p.certificacion || '',
+              cargo: p.Cargo || p.cargo || '',
+              tipo: p.Tipo || p.tipo || 'Campo',
+              fechaInicio: p.FechaInicio || p.fechaInicio || p.fecha_inicio || '',
+              fechaCaducidad: p.FechaCaducidad || p.fechaCaducidad || p.fecha_caducidad || '',
               estado: p.Estado || p.estado || 'Activo'
             })).filter(p => p.nombre);
             guardarPersonalStock();
@@ -3561,15 +3915,39 @@
     personalStock.forEach((persona, index) => {
       const estado = persona.estado || 'Activo';
       const esActivo = estado === 'Activo';
+      const tipoEmoji = {
+        'HSE': '🛡️',
+        'Campo': '🏗️',
+        'Técnica': '🔧'
+      }[persona.tipo] || '👤';
+
+      const fechaInicioStr = persona.fechaInicio 
+        ? `<span>📅 Inicio: <strong>${formatearFechaDDMM(persona.fechaInicio)}</strong></span>` 
+        : '';
+      const fechaCaducidadStr = persona.fechaCaducidad 
+        ? `<span>⏰ Caducó: <strong style="color:#f87171;">${formatearFechaDDMM(persona.fechaCaducidad)}</strong></span>` 
+        : '';
+
       html += `
-        <div class="equipo-list-item">
-          <div class="equipo-info">
-            <span class="equipo-nombre">${escapeHtml(persona.nombre)}</span>
-            <span class="equipo-codigo">${escapeHtml(persona.certificacion || '')} ${esActivo ? '<span style="color:#4CAF50;">● Activo</span>' : '<span style="color:#f44336;">● Caducado</span>'}</span>
+        <div class="personal-card">
+          <div class="personal-card-header">
+            <div>
+              <div class="personal-card-name">${escapeHtml(persona.nombre)}</div>
+            </div>
+            <span class="personal-card-badge ${esActivo ? 'activo' : 'caducado'}">${esActivo ? '● Activo' : '● Caducado'}</span>
           </div>
-          <div class="equipo-actions">
-            <button onclick="togglePersonaEstado(${index})" class="delete-equipo-btn" title="${esActivo ? 'Caducar' : 'Reactivar'}">${esActivo ? '⏻' : '↺'}</button>
-            <button onclick="eliminarPersona(${index})" class="delete-equipo-btn" title="Eliminar">✕</button>
+          <div class="personal-card-meta">
+            <span><span class="meta-label">${tipoEmoji} Tipo:</span> ${escapeHtml(persona.tipo || '—')}</span>
+            <span><span class="meta-label">🎖️ Cert:</span> ${escapeHtml(persona.certificacion || '—')}</span>
+            <span><span class="meta-label">💼 Cargo:</span> ${escapeHtml(persona.cargo || '—')}</span>
+          </div>
+          <div class="personal-card-dates">
+            ${fechaInicioStr}
+            ${fechaCaducidadStr}
+          </div>
+          <div class="personal-card-actions">
+            <button class="${esActivo ? 'btn-caducar' : 'btn-reactivar'}" onclick="togglePersonaEstado(${index})" title="${esActivo ? 'Caducar personal' : 'Reactivar personal'}">${esActivo ? '⏻ Caducar' : '↺ Reactivar'}</button>
+            <button class="btn-eliminar" onclick="eliminarPersona(${index})" title="Eliminar del registro">✕ Eliminar</button>
           </div>
         </div>
       `;
@@ -3645,31 +4023,70 @@
   function agregarPersona() {
     const nombre = document.getElementById('nuevaPersonaNombre').value.trim();
     const certificacion = document.getElementById('nuevaPersonaCertificacion').value.trim();
-    
+    const cargo = document.getElementById('nuevaPersonaCargo').value.trim();
+    const tipo = document.getElementById('nuevaPersonaTipo').value;
+    const fechaInicio = document.getElementById('nuevaPersonaFechaInicio').value;
+
     if (!nombre) {
       alert('El nombre de la persona es obligatorio');
       return;
     }
-    
+
     if (personalStock.some(p => p.nombre === nombre)) {
       alert('Esta persona ya existe en el registro');
       return;
     }
-    
-    personalStock.push({ nombre, certificacion, estado: 'Activo' });
+
+    personalStock.push({ 
+      nombre, 
+      certificacion, 
+      cargo: cargo || '',
+      tipo: tipo || 'Inspector',
+      fechaInicio: fechaInicio || '',
+      fechaCaducidad: '',
+      estado: 'Activo' 
+    });
     guardarPersonalStock();
     marcarDirty('personal');
+
+    // Limpiar formulario
     document.getElementById('nuevaPersonaNombre').value = '';
     document.getElementById('nuevaPersonaCertificacion').value = '';
+    document.getElementById('nuevaPersonaCargo').value = '';
+    document.getElementById('nuevaPersonaTipo').value = 'Inspector';
+    document.getElementById('nuevaPersonaFechaInicio').value = '';
+
     renderPersonalList();
+    renderStatsBar();
   }
 
   function togglePersonaEstado(index) {
     const persona = personalStock[index];
-    persona.estado = (persona.estado || 'Activo') === 'Activo' ? 'Caducado' : 'Activo';
+    const esActivo = (persona.estado || 'Activo') === 'Activo';
+
+    if (esActivo) {
+      // Caducar: pedir fecha de caducidad
+      const fechaCaducidad = prompt(
+        `📅 Caducar a "${persona.nombre}"\n\nIngresa la fecha de caducidad (YYYY-MM-DD):`,
+        new Date().toISOString().split('T')[0]
+      );
+      if (!fechaCaducidad) return; // Cancelado
+      if (!fechaCaducidad.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        alert('Formato de fecha inválido. Usa YYYY-MM-DD');
+        return;
+      }
+      persona.estado = 'Caducado';
+      persona.fechaCaducidad = fechaCaducidad;
+    } else {
+      // Reactivar
+      persona.estado = 'Activo';
+      persona.fechaCaducidad = '';
+    }
+
     guardarPersonalStock();
     marcarDirty('personal');
     renderPersonalList();
+    renderStatsBar();
   }
 
   function eliminarPersona(index) {
@@ -3678,6 +4095,7 @@
     guardarPersonalStock();
     marcarDirty('personal');
     renderPersonalList();
+    renderStatsBar();
   }
 
   // ==============================================================
@@ -5355,11 +5773,62 @@ if (fase.comentario && fase.comentario.trim()) {
     }
   }
 
-  function renderAll() {
+  
+  // ==============================================================
+  // DASHBOARD DE OCUPACIÓN DE PERSONAL
+  // ==============================================================
+  function calcularOcupacionPersonal() {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    let total = 0;
+    let ocupados = 0;
+
+    personalStock.forEach(p => {
+      // Solo contar personas ACTIVAS y de tipo Campo o HSE
+      if ((p.estado || 'Activo') !== 'Activo') return;
+      const tipo = (p.tipo || '').trim();
+      if (tipo !== 'Campo' && tipo !== 'HSE') return;
+
+      total++;
+
+      const estaOcupado = proyectos.some(proyecto => {
+        if (!proyecto || !proyecto.fases) return false;
+        return proyecto.fases.some(fase => {
+          if (!fase || !fase.recursos) return false;
+          return fase.recursos.some(recurso => {
+            if (!recurso || recurso.nombre !== p.nombre) return false;
+            const ini = parseFechaLocal(recurso.inicio || fase.inicio);
+            const fin = parseFechaLocal(recurso.fin || fase.fin);
+            if (isNaN(ini) || isNaN(fin)) return false;
+            return hoy >= ini && hoy <= fin;
+          });
+        });
+      });
+
+      if (estaOcupado) ocupados++;
+    });
+
+    return { total, ocupados, libres: total - ocupados };
+  }
+
+  function renderStatsBar() {
+    const stats = calcularOcupacionPersonal();
+    const elTotal = document.getElementById('statTotal');
+    const elOcupados = document.getElementById('statOcupados');
+    const elLibres = document.getElementById('statLibres');
+
+    if (elTotal) elTotal.textContent = stats.total;
+    if (elOcupados) elOcupados.textContent = stats.ocupados;
+    if (elLibres) elLibres.textContent = stats.libres;
+  }
+
+function renderAll() {
     calcularRangoGlobal();
     renderFixedHeader();
     renderProjects();
     renderTodayLine();
+    renderStatsBar();
   }
 
   function initDashboard() {

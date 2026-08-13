@@ -2444,7 +2444,7 @@
     </div>
     <div class="admin-buttons" id="adminButtons">
       <button class="btn-admin" onclick="openEquiposModal()">🔧 Equipos</button>
-      <button class="btn-admin" onclick="openPersonalModal()">👷 Personal</button>
+      <button class="btn-admin" onclick="openPersonalModal()">Personal</button>
     </div>
     <div class="admin-buttons" id="viewerButtons">
       <button class="btn-admin" onclick="openConsultaModal()">🔍 Consultar Disponibilidad</button>
@@ -2467,24 +2467,24 @@
 <div class="dashboards-wrapper">
     <div class="stats-bar" id="statsBar">
       <div style="font-size:0.6rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.6px; padding-right:8px; border-right:1px solid #2d3a5e; margin-right:4px; display:flex; align-items:center;">
-        👷<br>Actividad<br>Inspectores
+        Actividad<br>Inspectores
       </div>
       <div class="stat-card stat-total clickable" onclick="openInspectoresModal('total')" title="Ver todos los inspectores">
-        <div class="stat-icon">👷</div>
+        <div class="stat-icon" style="font-size:0.9rem; font-weight:700; color:#60a5fa;">T</div>
         <div class="stat-data">
           <span class="stat-value" id="statTotal">0</span>
           <span class="stat-label">Total</span>
         </div>
       </div>
       <div class="stat-card stat-ocupado clickable" onclick="openInspectoresModal('ocupados')" title="Ver inspectores ocupados hoy">
-        <div class="stat-icon">🔴</div>
+        <div class="stat-icon" style="font-size:0.9rem; font-weight:700; color:#f97316;">O</div>
         <div class="stat-data">
           <span class="stat-value" id="statOcupados">0</span>
           <span class="stat-label">Ocupados</span>
         </div>
       </div>
       <div class="stat-card stat-libre clickable" onclick="openInspectoresModal('libres')" title="Ver inspectores libres hoy">
-        <div class="stat-icon">🟢</div>
+        <div class="stat-icon" style="font-size:0.9rem; font-weight:700; color:#22c55e;">L</div>
         <div class="stat-data">
           <span class="stat-value" id="statLibres">0</span>
           <span class="stat-label">Libres</span>
@@ -2493,7 +2493,7 @@
     </div>
     <div class="stats-bar" id="lideresBar">
       <div style="font-size:0.6rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.6px; padding-right:8px; border-right:1px solid #2d3a5e; margin-right:4px; display:flex; align-items:center;">
-        🎯<br>Proyectos<br>Activos por<br>Líder
+        Proyectos<br>Activos por<br>Líder
       </div>
       <!-- Se llena dinámicamente -->
     </div>
@@ -2543,6 +2543,17 @@
   <div id="panelContent"></div>
 </div>
 
+
+<!-- MODAL TARJETA DE PROYECTO -->
+<div class="modal-overlay" id="tarjetaProyectoModal">
+  <div class="modal-content" style="max-width: 480px;">
+    <div class="modal-header">
+      <h2 id="tarjetaProyectoTitle">Proyecto</h2>
+      <button class="close-btn" onclick="closeTarjetaProyectoModal()">✕</button>
+    </div>
+    <div id="tarjetaProyectoContent" style="padding: 8px 0;"></div>
+  </div>
+</div>
 
 <!-- MODAL DETALLE DE INSPECTORES -->
 <div class="modal-overlay" id="inspectoresModal">
@@ -2627,7 +2638,7 @@
           </select>
         </div>
         <div class="form-group">
-          <label>📅 Inicio de contratación</label>
+          <label>Inicio de contratación</label>
           <input type="date" id="nuevaPersonaFechaInicio" />
         </div>
       </div>
@@ -2729,8 +2740,8 @@
         <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase;">Estado</label>
         <select id="filtroEstado">
           <option value="">Todos</option>
-          <option value="Abierto">🟢 Solo Abiertos</option>
-          <option value="Cerrado">⚪ Solo Cerrados</option>
+          <option value="Abierto">Solo Abiertos</option>
+          <option value="Cerrado">Solo Cerrados</option>
         </select>
       </div>
       <div class="form-group" style="margin-top:10px;">
@@ -2781,8 +2792,8 @@
       <div class="form-group">
         <label>Estado</label>
         <select id="projectEstado">
-          <option value="Abierto">🟢 Abierto</option>
-          <option value="Cerrado">⚪ Cerrado</option>
+          <option value="Abierto">Abierto</option>
+          <option value="Cerrado">Cerrado</option>
         </select>
       </div>
     </div>
@@ -3896,7 +3907,7 @@
     
     equiposConEstado.forEach(e => {
       const sel = selected === e.nombre ? 'selected' : '';
-      const estado = e.disponible ? '🟢' : '🔴';
+      const estado = e.disponible ? '[Disp.]' : '[Ocup.]';
       const label = e.disponible ? e.nombre : `${e.nombre} (Ocupado)`;
       html += `<option value="${e.nombre}" ${sel} data-disponible="${e.disponible}">${estado} ${label}</option>`;
     });
@@ -4167,17 +4178,17 @@
     personalStock.forEach((persona, index) => {
       const estado = persona.estado || 'Activo';
       const esActivo = estado === 'Activo';
-      const tipoEmoji = {
-        'HSE': '🛡️',
-        'Campo': '🏗️',
-        'Técnica': '🔧'
-      }[persona.tipo] || '👤';
+      const tipoLabel = {
+        'HSE': 'HSE',
+        'Campo': 'Campo',
+        'Técnica': 'Tec'
+      }[persona.tipo] || 'Otro';
 
       const fechaInicioStr = persona.fechaInicio 
-        ? `<span>📅 Inicio: <strong>${formatearFechaDDMM(persona.fechaInicio)}</strong></span>` 
+        ? `<span>Inicio: <strong>${formatearFechaDDMM(persona.fechaInicio)}</strong></span>` 
         : '';
       const fechaCaducidadStr = persona.fechaCaducidad 
-        ? `<span>⏰ Caducó: <strong style="color:#f87171;">${formatearFechaDDMM(persona.fechaCaducidad)}</strong></span>` 
+        ? `<span>Caducó: <strong style="color:#f87171;">${formatearFechaDDMM(persona.fechaCaducidad)}</strong></span>` 
         : '';
 
       html += `
@@ -4189,7 +4200,7 @@
             <span class="personal-card-badge ${esActivo ? 'activo' : 'caducado'}">${esActivo ? '● Activo' : '● Caducado'}</span>
           </div>
           <div class="personal-card-meta">
-            <span><span class="meta-label">${tipoEmoji} Tipo:</span> ${escapeHtml(persona.tipo || '—')}</span>
+            <span><span class="meta-label">Tipo:</span> ${escapeHtml(persona.tipo || '—')}</span>
             <span><span class="meta-label">🎖️ Cert:</span> ${escapeHtml(persona.certificacion || '—')}</span>
             <span><span class="meta-label">💼 Cargo:</span> ${escapeHtml(persona.cargo || '—')}</span>
           </div>
@@ -4319,7 +4330,7 @@
     if (esActivo) {
       // Caducar: pedir fecha de caducidad
       const fechaCaducidad = prompt(
-        `📅 Caducar a "${persona.nombre}"\n\nIngresa la fecha de caducidad (YYYY-MM-DD):`,
+        `Caducar a "${persona.nombre}"\n\nIngresa la fecha de caducidad (YYYY-MM-DD):`,
         new Date().toISOString().split('T')[0]
       );
       if (!fechaCaducidad) return; // Cancelado
@@ -4779,7 +4790,7 @@
         </div>
       </div>
       <div class="form-group fase-monto-group" id="fase-${faseId}-monto-group" style="display:${esFacturacion ? 'block' : 'none'}; margin-top:8px;">
-        <label>💵 Monto a facturar (USD)</label>
+        <label>Monto a facturar (USD)</label>
         <input type="number" id="fase-${faseId}-monto" value="${montoVal}" min="0" step="0.01" placeholder="Ej: 15000.00" />
       </div>
     `;
@@ -5013,9 +5024,9 @@ async function saveProject() {
         const fin = formatearFechaDDMM(c.conflicto.fin);
         if (c.tipo === 'persona') {
           if (c.conflicto.bloqueo) {
-            return `• 👤 ${c.nombre} en "${c.fase}": ${c.conflicto.motivo} (${inicio} → ${fin})`;
+            return `• ${c.nombre} en "${c.fase}": ${c.conflicto.motivo} (${inicio} → ${fin})`;
           }
-          return `• 👤 ${c.nombre} en "${c.fase}": ocupado en "${c.conflicto.proyecto}" - ${c.conflicto.fase} (${inicio} → ${fin})`;
+          return `• ${c.nombre} en "${c.fase}": ocupado en "${c.conflicto.proyecto}" - ${c.conflicto.fase} (${inicio} → ${fin})`;
         } else {
           if (c.conflicto.bloqueo) {
             return `• 🔧 ${c.nombre} (asignado a ${c.recurso}) en "${c.fase}": ${c.conflicto.motivo} (${inicio} → ${fin})`;
@@ -5286,9 +5297,24 @@ async function saveProject() {
     const container = document.getElementById('panelContent');
     const recursos = currentFase.recursos || [];
     const canEdit = userCanEdit();
-    
+
+    // Calcular estado de cada recurso
+    const recursosConEstado = recursos.map((r, idx) => ({
+      ...r,
+      _index: idx,
+      _estado: getEstadoRecursoEnFecha(r.nombre, currentFase.inicio, currentFase.fin)
+    }));
+    const recursosActivos = recursosConEstado.filter(r => r._estado.contar);
+
     let html = '';
-    
+
+    // Mostrar contador de activos vs total
+    if (recursos.length > 0) {
+      html += `<div style="font-size:0.6rem; color:#64748b; margin-bottom:8px; padding:4px 8px; background:rgba(255,255,255,0.02); border-radius:6px; border:1px solid rgba(45,58,94,0.3);">
+        Recursos: <strong style="color:#e2e8f0;">${recursosActivos.length}</strong> activos${recursos.length > recursosActivos.length ? ` · <span style="color:#f87171;">${recursos.length - recursosActivos.length} no activo${recursos.length - recursosActivos.length > 1 ? 's' : ''}</span>` : ''}
+      </div>`;
+    }
+
     if (recursos.length === 0) {
       html += `
         <div class="empty-state">
@@ -5298,8 +5324,9 @@ async function saveProject() {
       `;
     } else {
       html += `<div class="resources-section">`;
-      
-      recursos.forEach((recurso, index) => {
+
+      recursosConEstado.forEach((recurso) => {
+        const estado = recurso._estado;
         const equiposHtml = (recurso.equipos || []).map(eq => {
           const disponibilidad = getEquipoDisponibilidad(eq, currentFase.inicio, currentFase.fin, currentProject.id);
           const clase = disponibilidad.disponible ? '' : 'ocupado';
@@ -5307,15 +5334,20 @@ async function saveProject() {
             ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"` : '';
           return `<span class="resource-equipo-tag ${clase}"${tooltipOcupado}>${escapeHtml(eq)}</span>`;
         }).join('');
-        
+
         const fechasRecurso = (recurso.inicio && recurso.fin)
-          ? `<span style="color:#4ade80;">📅 ${formatearFechaDDMM(recurso.inicio)} → ${formatearFechaDDMM(recurso.fin)}</span> · `
+          ? `<span style="color:#4ade80;">${formatearFechaDDMM(recurso.inicio)} → ${formatearFechaDDMM(recurso.fin)}</span> · `
           : '';
 
+        const estadoBadge = estado.texto 
+          ? `<span style="font-size:0.5rem; padding:1px 5px; border-radius:8px; margin-left:6px; font-weight:600; ${estado.estado === 'Caducado' ? 'background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3);' : 'background:rgba(96,165,250,0.15); color:#60a5fa; border:1px solid rgba(96,165,250,0.3);'}">${estado.texto}</span>` 
+          : '';
+        const opacityStyle = estado.contar ? '' : 'opacity:0.5;';
+
         html += `
-          <div class="resource-item">
+          <div class="resource-item" style="${opacityStyle}">
             <div class="resource-info">
-              <div class="resource-name">${escapeHtml(recurso.nombre)}</div>
+              <div class="resource-name">${escapeHtml(recurso.nombre)}${estadoBadge}</div>
               <div class="resource-detail">
                 ${fechasRecurso}${escapeHtml(recurso.certificacion || 'Sin cert')} · 
                 ${escapeHtml(recurso.tecnica || 'Técnica no especificada')} · 
@@ -5324,16 +5356,16 @@ async function saveProject() {
               <div class="resource-equipos">${equiposHtml}</div>
             </div>
             <div class="resource-actions ${canEdit ? '' : 'disabled'}">
-              <button onclick="editResource(${index})" title="Editar">✎</button>
-              <button class="delete-btn" onclick="deleteResource(${index})" title="Eliminar">✕</button>
+              <button onclick="editResource(${recurso._index})" title="Editar">✎</button>
+              <button class="delete-btn" onclick="deleteResource(${recurso._index})" title="Eliminar">✕</button>
             </div>
           </div>
         `;
       });
-      
+
       html += `</div>`;
     }
-    
+
     html += `
       <button class="add-resource-btn ${canEdit ? '' : 'disabled'}" onclick="showAddResourceForm()">
         + Agregar Recurso
@@ -5587,15 +5619,29 @@ async function saveProject() {
   // ESTADO DE RECURSO EN FECHA (activo / caducado / nuevo)
   // ==============================================================
   function getEstadoRecursoEnFecha(nombrePersona, fechaInicioFase, fechaFinFase) {
-    const persona = personalStock.find(p => p.nombre === nombrePersona);
-    if (!persona) return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
+    // Búsqueda robusta: trim y comparación insensible a mayúsculas
+    const nombreBuscar = String(nombrePersona || '').trim();
+    const persona = personalStock.find(p => {
+      const nombreStock = String(p.nombre || '').trim();
+      return nombreStock.toLowerCase() === nombreBuscar.toLowerCase();
+    });
 
-    const fechaRef = parseFechaLocal(fechaInicioFase);
+    if (!persona) {
+      // Si no está en el stock de personal, asumimos activo (compatibilidad hacia atrás)
+      return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
+    }
 
-    // Verificar si es nuevo (fecha de inicio de contratación posterior a la fase)
+    const faseInicio = parseFechaLocal(fechaInicioFase);
+    const faseFin = parseFechaLocal(fechaFinFase);
+
+    if (isNaN(faseInicio) || isNaN(faseFin)) {
+      return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
+    }
+
+    // Verificar si es nuevo (fecha de inicio de contratación posterior al INICIO de la fase)
     if (persona.fechaInicio) {
       const fechaInicioContrato = parseFechaLocal(persona.fechaInicio);
-      if (fechaRef < fechaInicioContrato) {
+      if (!isNaN(fechaInicioContrato) && faseInicio < fechaInicioContrato) {
         return { 
           activo: false, 
           estado: 'Nuevo', 
@@ -5606,17 +5652,21 @@ async function saveProject() {
       }
     }
 
-    // Verificar si está caducado
+    // Verificar si está caducado: la fecha de caducidad cae ANTES o DURANTE la fase
     if ((persona.estado || 'Activo') !== 'Activo' && persona.fechaCaducidad) {
       const fechaCad = parseFechaLocal(persona.fechaCaducidad);
-      if (fechaRef > fechaCad) {
-        return { 
-          activo: false, 
-          estado: 'Caducado', 
-          clase: 'caducado', 
-          texto: `Caducó ${formatearFechaDDMM(persona.fechaCaducidad)}`, 
-          contar: false 
-        };
+      if (!isNaN(fechaCad)) {
+        // Si la fase comienza DESPUÉS de la caducidad -> caducado para toda la fase
+        // Si la caducidad cae DENTRO del rango de la fase -> también caducado (parcial)
+        if (faseInicio > fechaCad || (faseInicio <= fechaCad && faseFin >= fechaCad)) {
+          return { 
+            activo: false, 
+            estado: 'Caducado', 
+            clase: 'caducado', 
+            texto: `Caducó ${formatearFechaDDMM(persona.fechaCaducidad)}`, 
+            contar: false 
+          };
+        }
       }
     }
 
@@ -5654,7 +5704,7 @@ async function saveProject() {
 
       html += `
         <div style="background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.35); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;">
-          <div style="font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; margin-bottom: 3px;">💵 Facturación</div>
+          <div style="font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; margin-bottom: 3px;">Facturación</div>
           <div style="font-size: 0.85rem; font-weight: 700; color: #4ade80;">$ ${parcialFormateado} USD</div>
           <div style="font-size: 0.55rem; color: #64748b; margin-top: 2px;">Monto total: $ ${montoFormateado} · Avance: ${avance}%</div>
         </div>
@@ -5843,8 +5893,8 @@ if (fase.comentario && fase.comentario.trim()) {
       
       const estadoProyecto = proyecto.estado || 'Abierto';
       const estadoBadge = estadoProyecto === 'Cerrado'
-        ? `<span class="badge-estado cerrado">⚪ Cerrado</span>`
-        : `<span class="badge-estado abierto">🟢 Abierto</span>`;
+        ? `<span class="badge-estado cerrado">Cerrado</span>`
+        : `<span class="badge-estado abierto">Abierto</span>`;
       const liderBadge = proyecto.lider
         ? `<span class="badge-lider" title="Líder de proyecto">${escapeHtml(proyecto.lider)}</span>`
         : '';
@@ -5852,23 +5902,20 @@ if (fase.comentario && fase.comentario.trim()) {
       const montoFormateado = proyecto.montoOC 
         ? '$' + proyecto.montoOC.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' USD'
         : '';
-      const contactoHtml = proyecto.contacto 
-        ? `<span class="project-client" title="${escapeHtml(proyecto.correo || '')}">👤 ${escapeHtml(proyecto.contacto)}${proyecto.correo ? ' · 📧' : ''}</span>` 
-        : '';
+  
 
-      infoDiv.innerHTML = `
-        <div class="project-name">${escapeHtml(proyecto.id)} — ${escapeHtml(proyecto.nombre)}</div>
+            infoDiv.innerHTML = `
+        <div class="project-name" style="cursor:pointer;" title="Click para ver detalles">${escapeHtml(proyecto.id)} — ${escapeHtml(proyecto.nombre)}</div>
         <div class="project-client-row" style="margin-top:2px;">
-          <span class="project-client">🏢 ${escapeHtml(proyecto.cliente)}</span>
+          <span class="project-client">${escapeHtml(proyecto.cliente)}</span>
           ${liderBadge}
           ${estadoBadge}
         </div>
-        ${(montoFormateado || contactoHtml) ? `
-        <div class="project-client-row" style="margin-top:3px; flex-wrap:wrap; gap:4px;">
-          ${montoFormateado ? `<span style="font-size:0.55rem; background:linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05)); color:#4ade80; border:1px solid rgba(34,197,94,0.3); border-radius:5px; padding:1px 6px; font-weight:600; letter-spacing:0.2px;">💵 ${montoFormateado}</span>` : ''}
-          ${contactoHtml}
-        </div>` : ''}
       `;
+      infoDiv.querySelector('.project-name').addEventListener('click', function(e) {
+        e.stopPropagation();
+        openTarjetaProyecto(${proyectoIndex});
+      });
       
       wrapperDiv.appendChild(infoDiv);
 
@@ -6108,6 +6155,17 @@ if (fase.comentario && fase.comentario.trim()) {
   // ==============================================================
   // DASHBOARD DE OCUPACIÓN DE PERSONAL
   // ==============================================================
+
+  // ==============================================================
+  // UTILIDAD: Obtener iniciales de nombre
+  // ==============================================================
+  function getIniciales(nombre) {
+    if (!nombre) return '?';
+    const partes = nombre.trim().split(/\s+/);
+    if (partes.length === 1) return partes[0].substring(0, 2).toUpperCase();
+    return (partes[0].charAt(0) + partes[partes.length - 1].charAt(0)).toUpperCase();
+  }
+
   function calcularOcupacionPersonal() {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -6183,7 +6241,7 @@ if (fase.comentario && fase.comentario.trim()) {
     if (lideres.length === 0) {
       container.innerHTML = `
         <div style="font-size:0.6rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.6px; padding-right:8px; border-right:1px solid #2d3a5e; margin-right:4px; display:flex; align-items:center;">
-          🎯<br>Proyectos<br>Activos por<br>Líder
+          Proyectos<br>Activos por<br>Líder
         </div>
         <div style="color:#64748b; font-size:0.7rem; padding:8px;">Sin proyectos activos</div>
       `;
@@ -6192,7 +6250,7 @@ if (fase.comentario && fase.comentario.trim()) {
 
     let html = `
       <div style="font-size:0.6rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.6px; padding-right:8px; border-right:1px solid #2d3a5e; margin-right:4px; display:flex; align-items:center;">
-        🎯<br>Proyectos<br>Activos por<br>Líder
+        Proyectos<br>Activos por<br>Líder
       </div>
     `;
 
@@ -6215,6 +6273,83 @@ if (fase.comentario && fase.comentario.trim()) {
   // ==============================================================
   // MODAL DETALLE DE INSPECTORES (click en stats bar)
   // ==============================================================
+
+  // ==============================================================
+  // MODAL TARJETA DE PROYECTO
+  // ==============================================================
+  function openTarjetaProyecto(proyectoIndex) {
+    const proyecto = proyectos[proyectoIndex];
+    if (!proyecto) return;
+
+    const modal = document.getElementById('tarjetaProyectoModal');
+    const content = document.getElementById('tarjetaProyectoContent');
+
+    document.getElementById('tarjetaProyectoTitle').textContent = proyecto.id + ' — ' + proyecto.nombre;
+
+    const estadoClass = (proyecto.estado || 'Abierto') === 'Abierto' ? 'activo' : 'caducado';
+    const estadoText = (proyecto.estado || 'Abierto') === 'Abierto' ? 'Abierto' : 'Cerrado';
+    const montoFormateado = proyecto.montoOC 
+      ? '$' + proyecto.montoOC.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' USD'
+      : 'No registrado';
+
+    content.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="personal-card" style="margin-bottom:0;">
+          <div class="personal-card-header">
+            <div class="personal-card-name">${escapeHtml(proyecto.id)} — ${escapeHtml(proyecto.nombre)}</div>
+            <span class="personal-card-badge ${estadoClass}">${estadoText}</span>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <div class="personal-card" style="margin-bottom:0; padding:10px 12px;">
+            <div style="font-size:0.55rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:4px;">Cliente</div>
+            <div style="font-size:0.8rem; font-weight:600; color:#f1f5f9;">${escapeHtml(proyecto.cliente || '—')}</div>
+          </div>
+          <div class="personal-card" style="margin-bottom:0; padding:10px 12px;">
+            <div style="font-size:0.55rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:4px;">Lider</div>
+            <div style="font-size:0.8rem; font-weight:600; color:#f1f5f9;">${escapeHtml(proyecto.lider || '—')}</div>
+          </div>
+        </div>
+
+        <div class="personal-card" style="margin-bottom:0; padding:10px 12px;">
+          <div style="font-size:0.55rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:4px;">Orden de Compra / Servicio</div>
+          <div style="font-size:0.9rem; font-weight:700; color:${proyecto.montoOC ? '#4ade80' : '#94a3b8'};">${montoFormateado}</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <div class="personal-card" style="margin-bottom:0; padding:10px 12px;">
+            <div style="font-size:0.55rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:4px;">Contacto</div>
+            <div style="font-size:0.8rem; font-weight:600; color:#f1f5f9;">${escapeHtml(proyecto.contacto || '—')}</div>
+          </div>
+          <div class="personal-card" style="margin-bottom:0; padding:10px 12px;">
+            <div style="font-size:0.55rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:4px;">Correo</div>
+            <div style="font-size:0.75rem; font-weight:500; color:#94a3b8; word-break:break-all;">${escapeHtml(proyecto.correo || '—')}</div>
+          </div>
+        </div>
+
+        <div class="personal-card" style="margin-bottom:0; padding:10px 12px;">
+          <div style="font-size:0.55rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:6px;">Fases (${proyecto.fases ? proyecto.fases.length : 0})</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            ${(proyecto.fases || []).map(f => `
+              <div style="display:flex; align-items:center; gap:8px; font-size:0.7rem; color:#cbd5e1;">
+                <span style="width:8px; height:8px; border-radius:50%; background:${f.color || '#2196F3'}; flex-shrink:0;"></span>
+                <span style="flex:1;">${escapeHtml(f.nombre)}</span>
+                <span style="color:#64748b; font-size:0.6rem;">${formatearFechaDDMM(f.inicio)} → ${formatearFechaDDMM(f.fin)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+
+    modal.classList.add('active');
+  }
+
+  function closeTarjetaProyectoModal() {
+    document.getElementById('tarjetaProyectoModal').classList.remove('active');
+  }
+
   function openInspectoresModal(tipo) {
     const modal = document.getElementById('inspectoresModal');
     const title = document.getElementById('inspectoresModalTitle');
@@ -6272,7 +6407,7 @@ if (fase.comentario && fase.comentario.trim()) {
       filtrados.forEach(p => {
         const estadoClass = p.ocupado ? 'ocupado' : 'libre';
         const estadoText = p.ocupado ? 'Ocupado' : 'Libre';
-        const tipoEmoji = { 'HSE': '🛡️', 'Campo': '🏗️' }[p.tipo] || '👤';
+        const iniciales = getIniciales(p.nombre);
 
         // Buscar en qué proyecto/fase está ocupado
         let proyectoInfo = '';
@@ -6287,7 +6422,7 @@ if (fase.comentario && fase.comentario.trim()) {
                 const fin = parseFechaLocal(recurso.fin || fase.fin);
                 if (isNaN(ini) || isNaN(fin)) continue;
                 if (hoy >= ini && hoy <= fin) {
-                  proyectoInfo = `<div class="inspector-detalle-proyecto">📁 ${escapeHtml(proyecto.id)} — ${escapeHtml(fase.nombre)}</div>`;
+                  proyectoInfo = `<div class="inspector-detalle-proyecto">${escapeHtml(proyecto.id)} — ${escapeHtml(fase.nombre)}</div>`;
                   break;
                 }
               }
@@ -6299,7 +6434,7 @@ if (fase.comentario && fase.comentario.trim()) {
 
         html += `
           <div class="inspector-detalle-item">
-            <div class="inspector-detalle-avatar">${tipoEmoji}</div>
+            <div class="inspector-detalle-avatar">${escapeHtml(iniciales)}</div>
             <div class="inspector-detalle-info">
               <div class="inspector-detalle-name">${escapeHtml(p.nombre)}</div>
               <div class="inspector-detalle-cargo">${escapeHtml(p.cargo || 'Sin cargo')} · ${escapeHtml(p.certificacion || 'Sin certificación')}</div>
@@ -6451,8 +6586,15 @@ function renderAll() {
     }
   });
 
+  document.getElementById('tarjetaProyectoModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeTarjetaProyectoModal();
+    }
+  });
+
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
+      closeTarjetaProyectoModal();
       closeInspectoresModal();
       closeFiltroModal();
     }

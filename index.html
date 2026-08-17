@@ -2834,11 +2834,7 @@
   const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzrx-ExRjQFIoEO-SRnN9FKsmMJU9pWbLaSZMckXtICBp4Lf0MQ77J-n2YnvJN2G_wl/exec';
   
   // ==============================================================
-  // PARSEO DE FECHAS EN HORA LOCAL (evita el desfase de 1 día)
-  // "new Date('2026-07-27')" lo interpreta como UTC medianoche, y en
-  // zonas horarias detrás de UTC (como Perú, UTC-5) eso se convierte
-  // en 26 de julio al pasarlo a hora local. Esta función arma la
-  // fecha manualmente con año/mes/día para que quede en hora local.
+  // PARSEO DE FECHAS EN HORA LOCAL
   // ==============================================================
   function parseFechaLocal(fechaStr) {
     if (!fechaStr) return new Date(NaN);
@@ -2852,28 +2848,17 @@
   }
   
   // ==============================================================
-  // CONVERTIR FECHAS - FUNCIONES CORREGIDAS
+  // CONVERTIR FECHAS
   // ==============================================================
   function convertirFechaParaInput(fechaStr) {
     if (!fechaStr) return '';
-    
-    // Si es un string
     if (typeof fechaStr === 'string') {
-      // Limpiar espacios
       fechaStr = fechaStr.trim();
-      
-      // Si ya está EXACTAMENTE en formato YYYY-MM-DD (10 caracteres)
-      if (fechaStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        return fechaStr;
-      }
-      
-      // Si está en formato DD/MM/YYYY
+      if (fechaStr.match(/^\d{4}-\d{2}-\d{2}$/)) return fechaStr;
       if (fechaStr.match(/^\d{2}\/\d{2}\/\d{4}/)) {
         const partes = fechaStr.split('/');
         return `${partes[2]}-${partes[1]}-${partes[0]}`;
       }
-      
-      // Si es ISO con T (ej: 2024-03-01T00:00:00.000Z)
       if (fechaStr.includes('T')) {
         const fecha = new Date(fechaStr);
         if (!isNaN(fecha.getTime())) {
@@ -2883,8 +2868,6 @@
           return `${año}-${mes}-${dia}`;
         }
       }
-      
-      // Intentar parsear cualquier otra fecha
       const fecha = new Date(fechaStr);
       if (!isNaN(fecha.getTime())) {
         const año = fecha.getFullYear();
@@ -2893,8 +2876,6 @@
         return `${año}-${mes}-${dia}`;
       }
     }
-    
-    // Si es un número (timestamp)
     if (typeof fechaStr === 'number') {
       const fecha = new Date(fechaStr);
       if (!isNaN(fecha.getTime())) {
@@ -2904,14 +2885,11 @@
         return `${año}-${mes}-${dia}`;
       }
     }
-    
     return fechaStr;
   }
 
   function formatearFechaDDMM(fechaStr) {
     if (!fechaStr) return '';
-    
-    // Si es un número (timestamp de Google Sheets)
     if (typeof fechaStr === 'number') {
       const fecha = new Date((fechaStr - 25569) * 86400 * 1000);
       if (!isNaN(fecha.getTime())) {
@@ -2920,11 +2898,8 @@
         return `${dia}/${mes}`;
       }
     }
-    
     if (typeof fechaStr === 'string') {
       fechaStr = fechaStr.trim();
-      
-      // Si es ISO con T
       if (fechaStr.includes('T')) {
         const fecha = new Date(fechaStr);
         if (!isNaN(fecha.getTime())) {
@@ -2933,19 +2908,14 @@
           return `${dia}/${mes}`;
         }
       }
-      
-      // Si ya está en formato YYYY-MM-DD
       if (fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
         const partes = fechaStr.split('-');
         return `${partes[2]}/${partes[1]}`;
       }
-      
-      // Si ya está en DD/MM
       if (fechaStr.match(/^\d{2}\/\d{2}/)) {
         return fechaStr;
       }
     }
-    
     return fechaStr;
   }
 
@@ -3143,18 +3113,12 @@
       
       return result;
     } catch (error) {
-      // "Para guardar datos usa POST" es un aviso conocido de Google: a veces
-      // convierte internamente el POST en GET al despertar un contenedor nuevo.
-      // Es transitorio, así que le damos un poco más de margen antes de rendirnos.
-      const esRedirectConocido = error.message && error.message.includes('usa POST');
-      const maxIntentosReales = esRedirectConocido ? MAX_INTENTOS + 2 : MAX_INTENTOS;
-      
-      if (intento < maxIntentosReales) {
-        console.warn(`Reintentando guardar "${nombreHoja}" (intento ${intento + 1}/${maxIntentosReales})...`);
+      if (intento < MAX_INTENTOS) {
+        console.warn(`Reintentando guardar "${nombreHoja}" (intento ${intento + 1}/${MAX_INTENTOS})...`);
         await new Promise(resolve => setTimeout(resolve, 600 * intento));
         return guardarEnSheets(nombreHoja, datos, intento + 1);
       }
-      console.error(`Error guardando ${nombreHoja} tras ${maxIntentosReales} intentos:`, error);
+      console.error(`Error guardando ${nombreHoja} tras ${MAX_INTENTOS} intentos:`, error);
       throw error;
     }
   }
@@ -3167,8 +3131,6 @@
     const MAX_INTENTOS = 3;
     
     try {
-      // Se agrega un parámetro con la hora actual (cache-busting) para evitar que el
-      // navegador devuelva una respuesta guardada en caché en vez de los datos reales.
       const url = `${GOOGLE_SHEETS_URL}?action=get&sheet=${encodeURIComponent(nombreHoja)}&_ts=${Date.now()}`;
       const response = await fetch(url, { cache: 'no-store' });
       
@@ -3192,7 +3154,6 @@
   function transformarDatosSheets(proyectosData, fasesData, asignacionesData) {
     if (!proyectosData || proyectosData.length === 0) return [];
     
-    // Agrupar asignaciones (recursos) por FaseID, con fallback por ProyectoID+Fase para datos antiguos
     const recursosPorFaseId = {};
     const recursosPorProyectoFase = {};
     if (asignacionesData && asignacionesData.length > 0) {
@@ -3279,7 +3240,6 @@
     btnRefresh.textContent = '⬇️ Actualizando...';
     
     try {
-      // Si tenías cambios locales sin subir, se guardan primero para no perderlos
       const habiaCambiosPendientes = cambiosRecursosPendientes ||
         dirty.proyectos || dirty.fases || dirty.equipos || dirty.personal || dirty.asignaciones;
       
@@ -3330,8 +3290,6 @@
       const proyectosData = await cargarDesdeSheets('Proyectos');
       
       if (!proyectosData.error && proyectosData.data && proyectosData.data.length > 0) {
-        // Las 6 hojas restantes no dependen entre sí: se piden en paralelo
-        // en vez de una por una, para que cargue varias veces más rápido.
         const [fasesData, equiposData, personalData, asignacionesData, bloqueosEquiposData, bloqueosPersonalData] = await Promise.all([
           cargarDesdeSheets('Fases'),
           cargarDesdeSheets('Equipos'),
@@ -3395,8 +3353,6 @@
           saveToLocalStorage();
           datosCargados = true;
           
-          // Lo que acabamos de traer YA es lo último de Sheets, así que no
-          // queda nada pendiente por subir hasta el próximo cambio local.
           dirty.proyectos = false;
           dirty.fases = false;
           dirty.equipos = false;
@@ -3632,14 +3588,16 @@
   }
 
   // ==============================================================
-  // FILTROS DE PROYECTOS (ID, Nombre, Cliente, Líder, Estado)
+  // FILTROS DE PROYECTOS
   // ==============================================================
   const filtros = {
     id: '',
     nombre: '',
     cliente: '',
     lider: '',
-    estado: '' // '' = todos, 'Abierto', 'Cerrado'
+    estado: '',
+    recurso: '',
+    equipo: ''
   };
 
   function openFiltroModal() {
@@ -3671,7 +3629,6 @@
     document.getElementById('filtroLider').value = '';
     document.getElementById('filtroRecurso').value = '';
     document.getElementById('filtroEquipo').value = '';
-    // Al limpiar, el visualizador vuelve a su vista por defecto (solo Abiertos); el admin ve todos
     document.getElementById('filtroEstado').value = userCanEdit() ? '' : 'Abierto';
     aplicarFiltros();
   }
@@ -3858,7 +3815,6 @@
     const fechaFinDate = parseFechaLocal(fechaFin);
 
     for (const asignacion of asignaciones[equipoNombre]) {
-      // Si es el mismo proyecto que estamos editando, no cuenta como conflicto
       if (proyectoActualId && String(asignacion.proyectoId) === String(proyectoActualId)) {
         continue;
       }
@@ -3882,7 +3838,7 @@
   }
 
   function getEquipoDisponibilidad(equipoNombre, fechaInicio, fechaFin, proyectoId) {
-    const conflicto = verificarDisponibilidadEquipo(equipoNombre, fechaInicio, fechaFin, null, proyectoId);
+    const conflicto = verificarDisponibilidadEquipo(equipoNombre, fechaInicio, fechaFin, proyectoId);
     return {
       disponible: conflicto === null,
       conflicto: conflicto
@@ -3942,7 +3898,7 @@
   }
 
   // ==============================================================
-  // SISTEMA DE BLOQUEO DE PERSONAS POR FECHAS (mismo patrón que equipos)
+  // SISTEMA DE BLOQUEO DE PERSONAS POR FECHAS
   // ==============================================================
   function obtenerAsignacionesPersonas() {
     const ahora = Date.now();
@@ -4043,11 +3999,9 @@
     const fechaFinDate = parseFechaLocal(fechaFin);
 
     for (const asignacion of asignaciones[nombrePersona]) {
-      // Si es la misma fase que estamos editando, no cuenta como conflicto consigo misma
       if (faseActualId && asignacion.faseId === faseActualId) {
         continue;
       }
-      // Si es el mismo proyecto que estamos editando, no cuenta como conflicto
       if (proyectoActualId && String(asignacion.proyectoId) === String(proyectoActualId)) {
         continue;
       }
@@ -4131,7 +4085,7 @@
   }
 
   // ==============================================================
-  // GESTIÓN DE PERSONAL (módulo tipo Equipos: agregar / caducar)
+  // GESTIÓN DE PERSONAL
   // ==============================================================
   let personalStock = [];
 
@@ -4304,7 +4258,7 @@
       nombre, 
       certificacion, 
       cargo: cargo || '',
-      tipo: tipo || 'Inspector',
+      tipo: tipo || 'Campo',
       fechaInicio: fechaInicio || '',
       fechaCaducidad: '',
       estado: 'Activo' 
@@ -4312,11 +4266,10 @@
     guardarPersonalStock();
     marcarDirty('personal');
 
-    // Limpiar formulario
     document.getElementById('nuevaPersonaNombre').value = '';
     document.getElementById('nuevaPersonaCertificacion').value = '';
     document.getElementById('nuevaPersonaCargo').value = '';
-    document.getElementById('nuevaPersonaTipo').value = 'Inspector';
+    document.getElementById('nuevaPersonaTipo').value = 'Campo';
     document.getElementById('nuevaPersonaFechaInicio').value = '';
 
     renderPersonalList();
@@ -4328,12 +4281,11 @@
     const esActivo = (persona.estado || 'Activo') === 'Activo';
 
     if (esActivo) {
-      // Caducar: pedir fecha de caducidad
       const fechaCaducidad = prompt(
         `Caducar a "${persona.nombre}"\n\nIngresa la fecha de caducidad (YYYY-MM-DD):`,
         new Date().toISOString().split('T')[0]
       );
-      if (!fechaCaducidad) return; // Cancelado
+      if (!fechaCaducidad) return;
       if (!fechaCaducidad.match(/^\d{4}-\d{2}-\d{2}$/)) {
         alert('Formato de fecha inválido. Usa YYYY-MM-DD');
         return;
@@ -4341,7 +4293,6 @@
       persona.estado = 'Caducado';
       persona.fechaCaducidad = fechaCaducidad;
     } else {
-      // Reactivar
       persona.estado = 'Activo';
       persona.fechaCaducidad = '';
     }
@@ -4466,7 +4417,7 @@
   }
 
   // ==============================================================
-  // BLOQUEOS DE EQUIPOS (mantenimiento / calibración)
+  // BLOQUEOS DE EQUIPOS
   // ==============================================================
   let bloqueosEquipos = [];
   let bloqueoEquipoIdCounter = 1;
@@ -4488,7 +4439,7 @@
   }
 
   // ==============================================================
-  // BLOQUEOS DE PERSONAL (vacaciones / permisos)
+  // BLOQUEOS DE PERSONAL
   // ==============================================================
   let bloqueosPersonal = [];
   let bloqueoPersonaIdCounter = 1;
@@ -4737,7 +4688,7 @@
   }
 
   // ==============================================================
-  // addFaseToModal CORREGIDO
+  // addFaseToModal
   // ==============================================================
   function addFaseToModal(faseData) {
     const container = document.getElementById('fasesContainer');
@@ -4751,7 +4702,6 @@
       `<option value="${f.nombre}" data-color="${f.color}" ${faseData && f.nombre === faseData.nombre ? 'selected' : ''}>${f.nombre}</option>`
     ).join('');
     
-    // Convertir fechas para los inputs date (formato flexible)
     const inicioVal = faseData ? convertirFechaParaInput(faseData.inicio) : '';
     const finVal = faseData ? convertirFechaParaInput(faseData.fin) : '';
     const esFacturacion = faseData && faseData.nombre === 'Facturación';
@@ -4827,23 +4777,19 @@
   }
 
   // ==============================================================
-  // saveProject CORREGIDO
-  // ==============================================================
-    // ==============================================================
-  // VALIDACIÓN DE CONFLICTOS DE RECURSOS AL GUARDAR PROYECTO
+  // VALIDACIÓN DE CONFLICTOS DE RECURSOS - CORREGIDA
   // ==============================================================
   function validarConflictosRecursosProyecto(proyecto) {
     const conflictos = [];
 
     for (const fase of proyecto.fases) {
+      // Si la fase NO tiene recursos, no hay nada que validar
       if (!fase.recursos || fase.recursos.length === 0) continue;
 
       for (const recurso of fase.recursos) {
-        // Usar fechas del recurso si tiene sub-rango, sino las de la fase
         const resInicio = recurso.inicio || fase.inicio;
         const resFin = recurso.fin || fase.fin;
 
-        // Validar persona (excluyendo el propio proyecto completo)
         if (recurso.nombre) {
           const conflictoPersona = verificarDisponibilidadPersonaEdit(
             recurso.nombre, resInicio, resFin, fase.id, proyecto.id
@@ -4856,7 +4802,6 @@
           }
         }
 
-        // Validar equipos (excluyendo el propio proyecto completo)
         if (recurso.equipos && recurso.equipos.length > 0) {
           for (const equipo of recurso.equipos) {
             const conflictoEquipo = verificarDisponibilidadEquipoEdit(
@@ -4875,7 +4820,6 @@
     return conflictos;
   }
 
-  // Versión de verificación que excluye TODO el proyecto actual
   function verificarDisponibilidadPersonaEdit(nombrePersona, fechaInicio, fechaFin, faseActualId, proyectoActualId) {
     const bloqueo = verificarBloqueoPersona(nombrePersona, fechaInicio, fechaFin);
     if (bloqueo) return bloqueo;
@@ -4931,7 +4875,7 @@
     return null;
   }
 
-async function saveProject() {
+  async function saveProject() {
     if (!userCanEdit()) {
       alert('No tienes permisos para guardar cambios');
       return;
@@ -5016,7 +4960,7 @@ async function saveProject() {
       });
     }
 
-    // VALIDAR CONFLICTOS DE RECURSOS antes de guardar
+    // VALIDAR CONFLICTOS - SOLO si la fase tiene recursos
     const conflictos = validarConflictosRecursosProyecto(newProject);
     if (conflictos.length > 0) {
       const lista = conflictos.map(c => {
@@ -5052,13 +4996,13 @@ async function saveProject() {
     marcarDirty('proyectos', 'fases', 'asignaciones');
     closeProjectModal();
     renderAll();
+    renderStatsBar();
     
-    // GUARDAR AUTOMÁTICAMENTE EN GOOGLE SHEETS
     await syncWithSheets();
   }
 
   // ==============================================================
-  // deleteProject CORREGIDO
+  // deleteProject
   // ==============================================================
   async function deleteProject(index) {
     if (!userCanEdit()) {
@@ -5074,12 +5018,13 @@ async function saveProject() {
     saveToLocalStorage();
     marcarDirty('proyectos', 'fases', 'asignaciones');
     renderAll();
+    renderStatsBar();
     
     await syncWithSheets();
   }
 
   // ==============================================================
-  // saveResource CORREGIDO
+  // saveResource CORREGIDO - con actualización de stats
   // ==============================================================
   async function saveResource() {
     if (!userCanEdit()) {
@@ -5118,7 +5063,7 @@ async function saveProject() {
     const checkInicio = resInicio || currentFase.inicio;
     const checkFin = resFin || currentFase.fin;
 
-    const disponibilidadPersona = getPersonaDisponibilidad(nombre, checkInicio, checkFin, currentFase.id);
+    const disponibilidadPersona = getPersonaDisponibilidad(nombre, checkInicio, checkFin, currentFase.id, currentProject.id);
     if (!disponibilidadPersona.disponible) {
       const conflicto = disponibilidadPersona.conflicto;
       const inicioC = formatearFechaDDMM(conflicto.inicio);
@@ -5167,10 +5112,11 @@ async function saveProject() {
     saveToLocalStorage();
     cambiosRecursosPendientes = true;
     marcarDirty('asignaciones');
+    renderStatsBar(); // ACTUALIZAR DASHBOARD
   }
 
   // ==============================================================
-  // deleteResource CORREGIDO
+  // deleteResource CORREGIDO - con actualización de stats
   // ==============================================================
   async function deleteResource(index) {
     if (!userCanEdit()) {
@@ -5185,10 +5131,11 @@ async function saveProject() {
     saveToLocalStorage();
     cambiosRecursosPendientes = true;
     marcarDirty('asignaciones');
+    renderStatsBar(); // ACTUALIZAR DASHBOARD
   }
 
   // ==============================================================
-  // GESTIÓN DE RECURSOS (panel editable) - COMPLETA
+  // GESTIÓN DE RECURSOS (panel editable)
   // ==============================================================
   let currentProject = null;
   let currentFase = null;
@@ -5197,8 +5144,6 @@ async function saveProject() {
   let resourceIdCounter = 100;
   let cambiosRecursosPendientes = false;
   
-  // Marca qué pestañas tienen cambios reales pendientes de subir a Sheets.
-  // Empiezan en true para que la primera sincronización suba todo (estado seguro por defecto).
   const dirty = {
     proyectos: true,
     fases: true,
@@ -5293,12 +5238,71 @@ async function saveProject() {
     if (contador) contador.textContent = `${valor.length}/500 ✓ guardado`;
   }
 
+  // ==============================================================
+  // getEstadoRecursoEnFecha - CORREGIDO para manejar caducidad correctamente
+  // ==============================================================
+  function getEstadoRecursoEnFecha(nombrePersona, fechaInicioFase, fechaFinFase) {
+    const nombreBuscar = String(nombrePersona || '').trim();
+    const persona = personalStock.find(p => {
+      const nombreStock = String(p.nombre || '').trim();
+      return nombreStock.toLowerCase() === nombreBuscar.toLowerCase();
+    });
+
+    if (!persona) {
+      return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
+    }
+
+    const faseInicio = parseFechaLocal(fechaInicioFase);
+    const faseFin = parseFechaLocal(fechaFinFase);
+
+    if (isNaN(faseInicio) || isNaN(faseFin)) {
+      return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
+    }
+
+    // Verificar si es nuevo (fecha de inicio posterior al inicio de la fase)
+    if (persona.fechaInicio) {
+      const fechaInicioContrato = parseFechaLocal(persona.fechaInicio);
+      if (!isNaN(fechaInicioContrato) && faseInicio < fechaInicioContrato) {
+        return { 
+          activo: false, 
+          estado: 'Nuevo', 
+          clase: 'nuevo', 
+          texto: `Ingresa ${formatearFechaDDMM(persona.fechaInicio)}`, 
+          contar: false 
+        };
+      }
+    }
+
+    // Verificar si está caducado: 
+    // - Si la fase comienza DESPUÉS de la caducidad -> caducado (no contar)
+    // - Si la caducidad cae DENTRO del rango de la fase -> caducado (no contar)
+    if ((persona.estado || 'Activo') !== 'Activo' && persona.fechaCaducidad) {
+      const fechaCad = parseFechaLocal(persona.fechaCaducidad);
+      if (!isNaN(fechaCad)) {
+        // Si la fase comienza después de la caducidad O la fase contiene la fecha de caducidad
+        if (faseInicio > fechaCad || (faseInicio <= fechaCad && faseFin >= fechaCad)) {
+          return { 
+            activo: false, 
+            estado: 'Caducado', 
+            clase: 'caducado', 
+            texto: `Caducó ${formatearFechaDDMM(persona.fechaCaducidad)}`, 
+            contar: false 
+          };
+        }
+      }
+    }
+
+    return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
+  }
+
+  // ==============================================================
+  // renderResources - con estado de caducidad mejorado
+  // ==============================================================
   function renderResources() {
     const container = document.getElementById('panelContent');
     const recursos = currentFase.recursos || [];
     const canEdit = userCanEdit();
 
-    // Calcular estado de cada recurso
     const recursosConEstado = recursos.map((r, idx) => ({
       ...r,
       _index: idx,
@@ -5308,7 +5312,6 @@ async function saveProject() {
 
     let html = '';
 
-    // Mostrar contador de activos vs total
     if (recursos.length > 0) {
       html += `<div style="font-size:0.6rem; color:#64748b; margin-bottom:8px; padding:4px 8px; background:rgba(255,255,255,0.02); border-radius:6px; border:1px solid rgba(45,58,94,0.3);">
         Recursos: <strong style="color:#e2e8f0;">${recursosActivos.length}</strong> activos${recursos.length > recursosActivos.length ? ` · <span style="color:#f87171;">${recursos.length - recursosActivos.length} no activo${recursos.length - recursosActivos.length > 1 ? 's' : ''}</span>` : ''}
@@ -5614,65 +5617,6 @@ async function saveProject() {
   const tooltip = document.getElementById('resourcesTooltip');
   let tooltipHideTimeout = null;
 
-
-  // ==============================================================
-  // ESTADO DE RECURSO EN FECHA (activo / caducado / nuevo)
-  // ==============================================================
-  function getEstadoRecursoEnFecha(nombrePersona, fechaInicioFase, fechaFinFase) {
-    // Búsqueda robusta: trim y comparación insensible a mayúsculas
-    const nombreBuscar = String(nombrePersona || '').trim();
-    const persona = personalStock.find(p => {
-      const nombreStock = String(p.nombre || '').trim();
-      return nombreStock.toLowerCase() === nombreBuscar.toLowerCase();
-    });
-
-    if (!persona) {
-      // Si no está en el stock de personal, asumimos activo (compatibilidad hacia atrás)
-      return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
-    }
-
-    const faseInicio = parseFechaLocal(fechaInicioFase);
-    const faseFin = parseFechaLocal(fechaFinFase);
-
-    if (isNaN(faseInicio) || isNaN(faseFin)) {
-      return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
-    }
-
-    // Verificar si es nuevo (fecha de inicio de contratación posterior al INICIO de la fase)
-    if (persona.fechaInicio) {
-      const fechaInicioContrato = parseFechaLocal(persona.fechaInicio);
-      if (!isNaN(fechaInicioContrato) && faseInicio < fechaInicioContrato) {
-        return { 
-          activo: false, 
-          estado: 'Nuevo', 
-          clase: 'nuevo', 
-          texto: `Ingresa ${formatearFechaDDMM(persona.fechaInicio)}`, 
-          contar: false 
-        };
-      }
-    }
-
-    // Verificar si está caducado: la fecha de caducidad cae ANTES o DURANTE la fase
-    if ((persona.estado || 'Activo') !== 'Activo' && persona.fechaCaducidad) {
-      const fechaCad = parseFechaLocal(persona.fechaCaducidad);
-      if (!isNaN(fechaCad)) {
-        // Si la fase comienza DESPUÉS de la caducidad -> caducado para toda la fase
-        // Si la caducidad cae DENTRO del rango de la fase -> también caducado (parcial)
-        if (faseInicio > fechaCad || (faseInicio <= fechaCad && faseFin >= fechaCad)) {
-          return { 
-            activo: false, 
-            estado: 'Caducado', 
-            clase: 'caducado', 
-            texto: `Caducó ${formatearFechaDDMM(persona.fechaCaducidad)}`, 
-            contar: false 
-          };
-        }
-      }
-    }
-
-    return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
-  }
-
   function showResourcesTooltip(e, proyecto, fase) {
     if (tooltipHideTimeout) {
       clearTimeout(tooltipHideTimeout);
@@ -5694,7 +5638,6 @@ async function saveProject() {
     
     let html = '';
     
-        // Mostrar información de facturación si es fase Facturación y tiene monto
     if (fase.nombre === 'Facturación' && fase.monto !== null && fase.monto !== undefined && !isNaN(fase.monto)) {
       const avance = parseInt(fase.avance) || 0;
       const montoTotal = parseFloat(fase.monto);
@@ -5711,12 +5654,11 @@ async function saveProject() {
       `;
     }
 
-if (fase.comentario && fase.comentario.trim()) {
+    if (fase.comentario && fase.comentario.trim()) {
       html += `<div class="tooltip-comentario">💬 ${escapeHtml(fase.comentario)}</div>`;
     }
     
     if (recursos.length === 0) {
-      // En fase Facturación no mostrar "sin recursos" porque aquí solo va facturación/comentarios
       if (fase.nombre !== 'Facturación') {
         html += `<div class="tooltip-empty">No hay recursos asignados</div>`;
       }
@@ -5899,12 +5841,7 @@ if (fase.comentario && fase.comentario.trim()) {
         ? `<span class="badge-lider" title="Líder de proyecto">${escapeHtml(proyecto.lider)}</span>`
         : '';
       
-      const montoFormateado = proyecto.montoOC 
-        ? '$' + proyecto.montoOC.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' USD'
-        : '';
-  
-
-            infoDiv.innerHTML = `
+      infoDiv.innerHTML = `
         <div class="project-name" style="cursor:pointer;" title="Click para ver detalles">${escapeHtml(proyecto.id)} — ${escapeHtml(proyecto.nombre)}</div>
         <div class="project-client-row" style="margin-top:2px;">
           <span class="project-client">${escapeHtml(proyecto.cliente)}</span>
@@ -5965,7 +5902,6 @@ if (fase.comentario && fase.comentario.trim()) {
         const leftPos = startPos - cellStartPos;
         
         const avance = fase.avance || 0;
-        const fechaDisplay = formatearFechaDDMM(fase.inicio);
 
         const bloque = document.createElement("div");
         bloque.className = `phase-block ${canEdit ? '' : 'disabled'}`;
@@ -6004,7 +5940,7 @@ if (fase.comentario && fase.comentario.trim()) {
           openResourcesPanel(proy, faseData, fIndex);
         });
 
-                const recursosActivosFase = (fase.recursos || []).filter(r => {
+        const recursosActivosFase = (fase.recursos || []).filter(r => {
           const est = getEstadoRecursoEnFecha(r.nombre, fase.inicio, fase.fin);
           return est.contar;
         });
@@ -6020,7 +5956,7 @@ if (fase.comentario && fase.comentario.trim()) {
           <div class="phase-name">${escapeHtml(fase.nombre)}</div>
           <div class="phase-stats">
             <span>${avance}%</span>
-            <span>${fechaDisplay}</span>
+            <span>${formatearFechaDDMM(fase.inicio)}</span>
           </div>
           ${badgeRecursos}
         `;
@@ -6035,7 +5971,6 @@ if (fase.comentario && fase.comentario.trim()) {
       });
     });
 
-    // Mensaje cuando ningún proyecto cumple los filtros
     if (rowsContainer.children.length === 0) {
       const emptyDiv = document.createElement('div');
       emptyDiv.className = 'project-row';
@@ -6086,7 +6021,7 @@ if (fase.comentario && fase.comentario.trim()) {
   }
 
   // ==============================================================
-  // SINCRONIZACIÓN DE SCROLL - CORREGIDA
+  // SINCRONIZACIÓN DE SCROLL
   // ==============================================================
   function syncScroll() {
     const bodyScroll = document.getElementById("bodyScroll");
@@ -6097,7 +6032,6 @@ if (fase.comentario && fase.comentario.trim()) {
       return;
     }
     
-    // Forzar que el header tenga el mismo ancho que el contenido
     const ganttWrapper = document.getElementById("ganttWrapper");
     if (ganttWrapper) {
       const wrapperWidth = ganttWrapper.scrollWidth || ganttWrapper.offsetWidth;
@@ -6107,7 +6041,6 @@ if (fase.comentario && fase.comentario.trim()) {
       }
     }
     
-    // Sincronizar scroll horizontal
     function sincronizarScroll() {
       headerScroll.scrollLeft = bodyScroll.scrollLeft;
       hideResourcesTooltip();
@@ -6151,13 +6084,8 @@ if (fase.comentario && fase.comentario.trim()) {
     }
   }
 
-  
   // ==============================================================
   // DASHBOARD DE OCUPACIÓN DE PERSONAL
-  // ==============================================================
-
-  // ==============================================================
-  // UTILIDAD: Obtener iniciales de nombre
   // ==============================================================
   function getIniciales(nombre) {
     if (!nombre) return '?';
@@ -6190,6 +6118,9 @@ if (fase.comentario && fase.comentario.trim()) {
             const ini = parseFechaLocal(recurso.inicio || fase.inicio);
             const fin = parseFechaLocal(recurso.fin || fase.fin);
             if (isNaN(ini) || isNaN(fin)) return false;
+            // Verificar que el recurso esté ACTIVO en la fecha de hoy (no caducado)
+            const estado = getEstadoRecursoEnFecha(p.nombre, fase.inicio, fase.fin);
+            if (!estado.contar) return false;
             return hoy >= ini && hoy <= fin;
           });
         });
@@ -6212,7 +6143,6 @@ if (fase.comentario && fase.comentario.trim()) {
     if (elLibres) elLibres.textContent = stats.libres;
   }
 
-
   // ==============================================================
   // DASHBOARD DE PROYECTOS ACTIVOS POR LÍDER
   // ==============================================================
@@ -6226,7 +6156,6 @@ if (fase.comentario && fase.comentario.trim()) {
       conteo[lider] = (conteo[lider] || 0) + 1;
     });
 
-    // Ordenar por cantidad descendente
     return Object.entries(conteo)
       .sort((a, b) => b[1] - a[1])
       .map(([lider, count]) => ({ lider, count }));
@@ -6269,10 +6198,6 @@ if (fase.comentario && fase.comentario.trim()) {
 
     container.innerHTML = html;
   }
-
-  // ==============================================================
-  // MODAL DETALLE DE INSPECTORES (click en stats bar)
-  // ==============================================================
 
   // ==============================================================
   // MODAL TARJETA DE PROYECTO
@@ -6358,19 +6283,20 @@ if (fase.comentario && fase.comentario.trim()) {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    // Filtrar solo Campo/HSE activos
     const inspectores = personalStock.filter(p => {
       if ((p.estado || 'Activo') !== 'Activo') return false;
       const t = (p.tipo || '').trim();
       return t === 'Campo' || t === 'HSE';
     }).map(p => {
-      // Determinar si está ocupado hoy
       const ocupado = proyectos.some(proyecto => {
         if (!proyecto || !proyecto.fases) return false;
         return proyecto.fases.some(fase => {
           if (!fase || !fase.recursos) return false;
           return fase.recursos.some(recurso => {
             if (!recurso || recurso.nombre !== p.nombre) return false;
+            // Verificar estado del recurso en la fase
+            const estado = getEstadoRecursoEnFecha(p.nombre, fase.inicio, fase.fin);
+            if (!estado.contar) return false;
             const ini = parseFechaLocal(recurso.inicio || fase.inicio);
             const fin = parseFechaLocal(recurso.fin || fase.fin);
             if (isNaN(ini) || isNaN(fin)) return false;
@@ -6409,7 +6335,6 @@ if (fase.comentario && fase.comentario.trim()) {
         const estadoText = p.ocupado ? 'Ocupado' : 'Libre';
         const iniciales = getIniciales(p.nombre);
 
-        // Buscar en qué proyecto/fase está ocupado
         let proyectoInfo = '';
         if (p.ocupado) {
           for (const proyecto of proyectos) {
@@ -6418,6 +6343,8 @@ if (fase.comentario && fase.comentario.trim()) {
               if (!fase || !fase.recursos) continue;
               for (const recurso of fase.recursos) {
                 if (!recurso || recurso.nombre !== p.nombre) continue;
+                const estado = getEstadoRecursoEnFecha(p.nombre, fase.inicio, fase.fin);
+                if (!estado.contar) continue;
                 const ini = parseFechaLocal(recurso.inicio || fase.inicio);
                 const fin = parseFechaLocal(recurso.fin || fase.fin);
                 if (isNaN(ini) || isNaN(fin)) continue;
@@ -6454,7 +6381,7 @@ if (fase.comentario && fase.comentario.trim()) {
     document.getElementById('inspectoresModal').classList.remove('active');
   }
 
-function renderAll() {
+  function renderAll() {
     calcularRangoGlobal();
     renderFixedHeader();
     renderProjects();

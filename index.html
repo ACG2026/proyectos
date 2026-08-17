@@ -650,6 +650,12 @@
       border: 1px solid rgba(148, 163, 184, 0.25);
     }
 
+    .badge-estado.standby {
+      color: #fb923c;
+      background: rgba(251, 146, 60, 0.15);
+      border: 1px solid rgba(251, 146, 60, 0.35);
+    }
+
     .project-actions {
       display: flex;
       gap: 2px;
@@ -912,10 +918,23 @@
       font-weight: 500;
     }
 
+    .tooltip-resource .res-equipo-tag.disponible {
+      border-color: #22c55e;
+      color: #4ade80;
+      background: rgba(34, 197, 94, 0.12);
+    }
+
     .tooltip-resource .res-equipo-tag.ocupado {
       border-color: #ff6b6b;
       color: #ff6b6b;
       background: #2a1a1a;
+    }
+
+    .tooltip-resource .res-equipo-tag.caducado {
+      border-color: #f87171;
+      color: #f87171;
+      background: rgba(239, 68, 68, 0.1);
+      opacity: 0.6;
     }
 
     .tooltip-resource .res-tecnica {
@@ -1129,10 +1148,23 @@
       gap: 4px;
     }
 
+    .resource-item .resource-equipo-tag.disponible {
+      border-color: #22c55e;
+      color: #4ade80;
+      background: rgba(34, 197, 94, 0.1);
+    }
+
     .resource-item .resource-equipo-tag.ocupado {
       border-color: #ff6b6b;
       color: #ff6b6b;
       background: #2a1a1a;
+    }
+
+    .resource-item .resource-equipo-tag.caducado {
+      border-color: #f87171;
+      color: #f87171;
+      background: rgba(239, 68, 68, 0.08);
+      opacity: 0.6;
     }
 
     .resource-item .resource-actions {
@@ -1333,6 +1365,12 @@
       background: #2a1a1a;
     }
 
+    .equipo-tag.disponible {
+      border-color: #22c55e;
+      color: #4ade80;
+      background: rgba(34, 197, 94, 0.1);
+    }
+
     /* ============================================ */
     /* MODAL DE EQUIPOS */
     /* ============================================ */
@@ -1421,6 +1459,7 @@
       display: flex;
       gap: 12px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     .equipo-list-item .equipo-nombre {
@@ -1433,6 +1472,31 @@
       color: #64748b;
       font-size: 0.65rem;
       font-family: monospace;
+    }
+
+    .equipo-list-item .equipo-calibracion {
+      font-size: 0.6rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .equipo-list-item .equipo-calibracion.vigente {
+      color: #4ade80;
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .equipo-list-item .equipo-calibracion.vencida {
+      color: #f87171;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .equipo-list-item .equipo-calibracion.sin-fecha {
+      color: #94a3b8;
+      background: rgba(148, 163, 184, 0.08);
+      border: 1px solid rgba(148, 163, 184, 0.2);
     }
 
     .equipo-list-item .equipo-actions {
@@ -1529,10 +1593,12 @@
       margin-top: 10px;
       padding-top: 10px;
       border-top: 1px solid #2d3a5e;
+      flex-wrap: wrap;
     }
 
     .add-equipo-form input {
       flex: 1;
+      min-width: 100px;
       background: #1e293b;
       border: 1px solid #2d3a5e;
       color: #e2e8f0;
@@ -2375,8 +2441,6 @@
 
   </style>
 <base target="_blank">
-<base target="_blank">
-<base target="_blank">
 </head>
 <body>
 
@@ -2577,6 +2641,7 @@
     <div class="add-equipo-form">
       <input type="text" id="nuevoEquipoNombre" placeholder="Nombre del equipo" />
       <input type="text" id="nuevoEquipoCodigo" placeholder="Código (opcional)" />
+      <input type="date" id="nuevoEquipoCalibracion" placeholder="Vencimiento calibración" />
       <button onclick="agregarEquipo()">Agregar</button>
     </div>
     
@@ -2741,6 +2806,7 @@
         <select id="filtroEstado">
           <option value="">Todos</option>
           <option value="Abierto">Solo Abiertos</option>
+          <option value="Stand by">Solo Stand by</option>
           <option value="Cerrado">Solo Cerrados</option>
         </select>
       </div>
@@ -2793,6 +2859,7 @@
         <label>Estado</label>
         <select id="projectEstado">
           <option value="Abierto">Abierto</option>
+          <option value="Stand by">Stand by</option>
           <option value="Cerrado">Cerrado</option>
         </select>
       </div>
@@ -2919,6 +2986,39 @@
     return fechaStr;
   }
 
+  function formatearFechaDDMMYYYY(fechaStr) {
+    if (!fechaStr) return '';
+    if (typeof fechaStr === 'number') {
+      const fecha = new Date((fechaStr - 25569) * 86400 * 1000);
+      if (!isNaN(fecha.getTime())) {
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const año = fecha.getFullYear();
+        return `${dia}/${mes}/${año}`;
+      }
+    }
+    if (typeof fechaStr === 'string') {
+      fechaStr = fechaStr.trim();
+      if (fechaStr.includes('T')) {
+        const fecha = new Date(fechaStr);
+        if (!isNaN(fecha.getTime())) {
+          const dia = String(fecha.getDate()).padStart(2, '0');
+          const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+          const año = fecha.getFullYear();
+          return `${dia}/${mes}/${año}`;
+        }
+      }
+      if (fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const partes = fechaStr.split('-');
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+      }
+      if (fechaStr.match(/^\d{2}\/\d{2}\/\d{4}/)) {
+        return fechaStr;
+      }
+    }
+    return fechaStr;
+  }
+
   // ==============================================================
   // CERRAR SESIÓN AL CERRAR LA PÁGINA
   // ==============================================================
@@ -3023,7 +3123,8 @@
       if (dirty.equipos) {
         const equiposData = equiposStock.map(e => ({
           Nombre: e.nombre,
-          Código: e.codigo || ''
+          Código: e.codigo || '',
+          Calibracion: e.calibracion || ''
         }));
         tareas.push(
           guardarEnSheets('Equipos', equiposData).then(() => { dirty.equipos = false; })
@@ -3307,8 +3408,10 @@
           if (equiposData.data && equiposData.data.length > 0) {
             equiposStock = equiposData.data.map(e => ({
               nombre: e.Nombre || e.nombre || '',
-              codigo: e.Código || e.codigo || ''
+              codigo: e.Código || e.codigo || '',
+              calibracion: e.Calibracion || e.calibracion || ''
             })).filter(e => e.nombre);
+            ordenarEquiposAlfabeticamente();
             guardarEquiposStock();
           }
           
@@ -3322,6 +3425,7 @@
               fechaCaducidad: p.FechaCaducidad || p.fechaCaducidad || p.fecha_caducidad || '',
               estado: p.Estado || p.estado || 'Activo'
             })).filter(p => p.nombre);
+            ordenarPersonalAlfabeticamente();
             guardarPersonalStock();
           }
           
@@ -3447,23 +3551,39 @@
   }
 
   // ==============================================================
-  // LISTA DE EQUIPOS (Stock)
+  // LISTA DE EQUIPOS (Stock) - con fecha de calibración
   // ==============================================================
   let equiposStock = [
-    { nombre: "OMNISCAN", codigo: "ACG-EI-025" },
-    { nombre: "GEKKO", codigo: "ACG-EI-012" },
-    { nombre: "MANTIS", codigo: "ACG-EI-013" },
-    { nombre: "HYDROFORM", codigo: "ACG-EI-026" },
-    { nombre: "DOPPLER", codigo: "ACG-EI-023" },
-    { nombre: "R.SCAN", codigo: "ACG-EI-014" },
-    { nombre: "NAVIC", codigo: "ACG-EQ-061" },
-    { nombre: "FLEXOFORM", codigo: "ACG-EI-027" },
-    { nombre: "FLOORMAP X", codigo: "ACG-EI-011" },
-    { nombre: "38 DL PLUS", codigo: "ACG-EI-001" },
-    { nombre: "38 DL PLUS", codigo: "ACG-EI-002" },
-    { nombre: "SONOWALL", codigo: "ACG-EI-015" },
-    { nombre: "YUGO MAGNETICO", codigo: "ACG-EQ-067" }
+    { nombre: "OMNISCAN", codigo: "ACG-EI-025", calibracion: "2025-12-31" },
+    { nombre: "GEKKO", codigo: "ACG-EI-012", calibracion: "2025-10-15" },
+    { nombre: "MANTIS", codigo: "ACG-EI-013", calibracion: "" },
+    { nombre: "HYDROFORM", codigo: "ACG-EI-026", calibracion: "2026-01-20" },
+    { nombre: "DOPPLER", codigo: "ACG-EI-023", calibracion: "" },
+    { nombre: "R.SCAN", codigo: "ACG-EI-014", calibracion: "2025-09-30" },
+    { nombre: "NAVIC", codigo: "ACG-EQ-061", calibracion: "" },
+    { nombre: "FLEXOFORM", codigo: "ACG-EI-027", calibracion: "2026-03-10" },
+    { nombre: "FLOORMAP X", codigo: "ACG-EI-011", calibracion: "" },
+    { nombre: "38 DL PLUS", codigo: "ACG-EI-001", calibracion: "2025-08-01" },
+    { nombre: "38 DL PLUS", codigo: "ACG-EI-002", calibracion: "2025-08-01" },
+    { nombre: "SONOWALL", codigo: "ACG-EI-015", calibracion: "" },
+    { nombre: "YUGO MAGNETICO", codigo: "ACG-EQ-067", calibracion: "2025-11-30" }
   ];
+
+  function ordenarEquiposAlfabeticamente() {
+    equiposStock.sort((a, b) => {
+      const nombreA = a.nombre || '';
+      const nombreB = b.nombre || '';
+      return nombreA.localeCompare(nombreB);
+    });
+  }
+
+  function ordenarPersonalAlfabeticamente() {
+    personalStock.sort((a, b) => {
+      const nombreA = a.nombre || '';
+      const nombreB = b.nombre || '';
+      return nombreA.localeCompare(nombreB);
+    });
+  }
 
   // ==============================================================
   // SISTEMA DE LOGIN Y PERFILES
@@ -4096,6 +4216,7 @@
         const parsed = JSON.parse(data);
         if (parsed && parsed.length > 0) {
           personalStock = parsed;
+          ordenarPersonalAlfabeticamente();
         }
       }
     } catch (e) {}
@@ -4263,6 +4384,7 @@
       fechaCaducidad: '',
       estado: 'Activo' 
     });
+    ordenarPersonalAlfabeticamente();
     guardarPersonalStock();
     marcarDirty('personal');
 
@@ -4405,6 +4527,7 @@
         const parsed = JSON.parse(data);
         if (parsed && parsed.length > 0) {
           equiposStock = parsed;
+          ordenarEquiposAlfabeticamente();
         }
       }
     } catch (e) {}
@@ -4495,20 +4618,58 @@
       return;
     }
     let html = '';
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    
     equiposStock.forEach((equipo, index) => {
+      let calibracionClass = 'sin-fecha';
+      let calibracionText = 'Sin fecha';
+      
+      if (equipo.calibracion) {
+        const fechaCal = parseFechaLocal(equipo.calibracion);
+        if (!isNaN(fechaCal)) {
+          if (fechaCal >= hoy) {
+            calibracionClass = 'vigente';
+            calibracionText = '✅ Vigente hasta ' + formatearFechaDDMMYYYY(equipo.calibracion);
+          } else {
+            calibracionClass = 'vencida';
+            calibracionText = '⚠️ Vencida el ' + formatearFechaDDMMYYYY(equipo.calibracion);
+          }
+        }
+      }
+      
       html += `
         <div class="equipo-list-item">
           <div class="equipo-info">
             <span class="equipo-nombre">${escapeHtml(equipo.nombre)}</span>
             <span class="equipo-codigo">${escapeHtml(equipo.codigo || '')}</span>
+            <span class="equipo-calibracion ${calibracionClass}">${calibracionText}</span>
           </div>
           <div class="equipo-actions">
+            <button onclick="editarEquipoCalibracion(${index})" title="Editar calibración">📅</button>
             <button onclick="eliminarEquipo(${index})" class="delete-equipo-btn">✕</button>
           </div>
         </div>
       `;
     });
     container.innerHTML = html;
+  }
+
+  function editarEquipoCalibracion(index) {
+    const equipo = equiposStock[index];
+    const nuevaFecha = prompt(
+      `Ingresa la nueva fecha de vencimiento de calibración para "${equipo.nombre}" (YYYY-MM-DD):`,
+      equipo.calibracion || ''
+    );
+    if (nuevaFecha === null) return;
+    if (nuevaFecha && !nuevaFecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      alert('Formato inválido. Usa YYYY-MM-DD');
+      return;
+    }
+    equipo.calibracion = nuevaFecha || '';
+    guardarEquiposStock();
+    marcarDirty('equipos');
+    renderEquiposList();
   }
 
   function poblarSelectBloqueoEquipo() {
@@ -4579,6 +4740,7 @@
   function agregarEquipo() {
     const nombre = document.getElementById('nuevoEquipoNombre').value.trim();
     const codigo = document.getElementById('nuevoEquipoCodigo').value.trim();
+    const calibracion = document.getElementById('nuevoEquipoCalibracion').value || '';
     
     if (!nombre) {
       alert('El nombre del equipo es obligatorio');
@@ -4590,11 +4752,13 @@
       return;
     }
     
-    equiposStock.push({ nombre, codigo });
+    equiposStock.push({ nombre, codigo, calibracion });
+    ordenarEquiposAlfabeticamente();
     guardarEquiposStock();
     marcarDirty('equipos');
     document.getElementById('nuevoEquipoNombre').value = '';
     document.getElementById('nuevoEquipoCodigo').value = '';
+    document.getElementById('nuevoEquipoCalibracion').value = '';
     renderEquiposList();
   }
 
@@ -4777,13 +4941,12 @@
   }
 
   // ==============================================================
-  // VALIDACIÓN DE CONFLICTOS DE RECURSOS - CORREGIDA
+  // VALIDACIÓN DE CONFLICTOS DE RECURSOS
   // ==============================================================
   function validarConflictosRecursosProyecto(proyecto) {
     const conflictos = [];
 
     for (const fase of proyecto.fases) {
-      // Si la fase NO tiene recursos, no hay nada que validar
       if (!fase.recursos || fase.recursos.length === 0) continue;
 
       for (const recurso of fase.recursos) {
@@ -4960,7 +5123,7 @@
       });
     }
 
-    // VALIDAR CONFLICTOS - SOLO si la fase tiene recursos
+    // VALIDAR CONFLICTOS
     const conflictos = validarConflictosRecursosProyecto(newProject);
     if (conflictos.length > 0) {
       const lista = conflictos.map(c => {
@@ -5024,7 +5187,7 @@
   }
 
   // ==============================================================
-  // saveResource CORREGIDO - con actualización de stats
+  // saveResource
   // ==============================================================
   async function saveResource() {
     if (!userCanEdit()) {
@@ -5112,11 +5275,11 @@
     saveToLocalStorage();
     cambiosRecursosPendientes = true;
     marcarDirty('asignaciones');
-    renderStatsBar(); // ACTUALIZAR DASHBOARD
+    renderStatsBar();
   }
 
   // ==============================================================
-  // deleteResource CORREGIDO - con actualización de stats
+  // deleteResource
   // ==============================================================
   async function deleteResource(index) {
     if (!userCanEdit()) {
@@ -5131,7 +5294,7 @@
     saveToLocalStorage();
     cambiosRecursosPendientes = true;
     marcarDirty('asignaciones');
-    renderStatsBar(); // ACTUALIZAR DASHBOARD
+    renderStatsBar();
   }
 
   // ==============================================================
@@ -5239,7 +5402,7 @@
   }
 
   // ==============================================================
-  // getEstadoRecursoEnFecha - CORREGIDO para manejar caducidad correctamente
+  // getEstadoRecursoEnFecha - CORREGIDO
   // ==============================================================
   function getEstadoRecursoEnFecha(nombrePersona, fechaInicioFase, fechaFinFase) {
     const nombreBuscar = String(nombrePersona || '').trim();
@@ -5259,7 +5422,6 @@
       return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
     }
 
-    // Verificar si es nuevo (fecha de inicio posterior al inicio de la fase)
     if (persona.fechaInicio) {
       const fechaInicioContrato = parseFechaLocal(persona.fechaInicio);
       if (!isNaN(fechaInicioContrato) && faseInicio < fechaInicioContrato) {
@@ -5273,13 +5435,9 @@
       }
     }
 
-    // Verificar si está caducado: 
-    // - Si la fase comienza DESPUÉS de la caducidad -> caducado (no contar)
-    // - Si la caducidad cae DENTRO del rango de la fase -> caducado (no contar)
     if ((persona.estado || 'Activo') !== 'Activo' && persona.fechaCaducidad) {
       const fechaCad = parseFechaLocal(persona.fechaCaducidad);
       if (!isNaN(fechaCad)) {
-        // Si la fase comienza después de la caducidad O la fase contiene la fecha de caducidad
         if (faseInicio > fechaCad || (faseInicio <= fechaCad && faseFin >= fechaCad)) {
           return { 
             activo: false, 
@@ -5296,7 +5454,7 @@
   }
 
   // ==============================================================
-  // renderResources - con estado de caducidad mejorado
+  // renderResources - con estado de caducidad y colores de equipos
   // ==============================================================
   function renderResources() {
     const container = document.getElementById('panelContent');
@@ -5332,10 +5490,30 @@
         const estado = recurso._estado;
         const equiposHtml = (recurso.equipos || []).map(eq => {
           const disponibilidad = getEquipoDisponibilidad(eq, currentFase.inicio, currentFase.fin, currentProject.id);
-          const clase = disponibilidad.disponible ? '' : 'ocupado';
-          const tooltipOcupado = !disponibilidad.disponible ? 
-            ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"` : '';
-          return `<span class="resource-equipo-tag ${clase}"${tooltipOcupado}>${escapeHtml(eq)}</span>`;
+          let clase = '';
+          let tooltip = '';
+          
+          if (disponibilidad.disponible) {
+            clase = 'disponible';
+            tooltip = ' title="Equipo disponible"';
+          } else {
+            clase = 'ocupado';
+            tooltip = ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"`;
+          }
+          
+          // Verificar calibración
+          const equipoStock = equiposStock.find(e => e.nombre === eq);
+          if (equipoStock && equipoStock.calibracion) {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const fechaCal = parseFechaLocal(equipoStock.calibracion);
+            if (!isNaN(fechaCal) && fechaCal < hoy) {
+              clase = 'caducado';
+              tooltip = ' title="⚠️ Calibración vencida"';
+            }
+          }
+          
+          return `<span class="resource-equipo-tag ${clase}"${tooltip}>${escapeHtml(eq)}</span>`;
         }).join('');
 
         const fechasRecurso = (recurso.inicio && recurso.fin)
@@ -5441,12 +5619,23 @@
     let html = '';
     equiposSeleccionados.forEach((eq, index) => {
       const disponibilidad = getEquipoDisponibilidad(eq, currentFase.inicio, currentFase.fin, currentProject.id);
-      const clase = disponibilidad.disponible ? '' : 'ocupado';
-      const tooltipOcupado = !disponibilidad.disponible ? 
-        ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"` : '';
+      let clase = disponibilidad.disponible ? 'disponible' : 'ocupado';
+      let tooltip = disponibilidad.disponible ? ' title="Equipo disponible"' : ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"`;
+      
+      // Verificar calibración
+      const equipoStock = equiposStock.find(e => e.nombre === eq);
+      if (equipoStock && equipoStock.calibracion) {
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const fechaCal = parseFechaLocal(equipoStock.calibracion);
+        if (!isNaN(fechaCal) && fechaCal < hoy) {
+          clase = 'caducado';
+          tooltip = ' title="⚠️ Calibración vencida"';
+        }
+      }
       
       html += `
-        <span class="equipo-tag ${clase}"${tooltipOcupado}>
+        <span class="equipo-tag ${clase}"${tooltip}>
           ${escapeHtml(eq)}
           <button class="remove-equipo" onclick="removerEquipoSeleccionado(${index})">✕</button>
         </span>
@@ -5668,19 +5857,45 @@
         
         const equiposHtml = (res.equipos || []).map(eq => {
           const disponibilidad = getEquipoDisponibilidad(eq, fase.inicio, fase.fin, proyecto.id);
-          const clase = disponibilidad.disponible ? '' : 'ocupado';
-          return `<span class="res-equipo-tag ${clase}">${escapeHtml(eq)}</span>`;
+          let clase = '';
+          let tooltipTitle = '';
+          
+          if (disponibilidad.disponible) {
+            clase = 'disponible';
+          } else {
+            clase = 'ocupado';
+            tooltipTitle = ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"`;
+          }
+          
+          // Verificar calibración
+          const equipoStock = equiposStock.find(e => e.nombre === eq);
+          if (equipoStock && equipoStock.calibracion) {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const fechaCal = parseFechaLocal(equipoStock.calibracion);
+            if (!isNaN(fechaCal) && fechaCal < hoy) {
+              clase = 'caducado';
+              tooltipTitle = ' title="⚠️ Calibración vencida"';
+            }
+          }
+          
+          return `<span class="res-equipo-tag ${clase}"${tooltipTitle}>${escapeHtml(eq)}</span>`;
         }).join('');
         
         const fechasTooltip = (res.inicio && res.fin)
           ? `📅 ${formatearFechaDDMM(res.inicio)}→${formatearFechaDDMM(res.fin)} · `
           : '';
 
+        // Estado del recurso
+        const estado = getEstadoRecursoEnFecha(res.nombre, fase.inicio, fase.fin);
+        const estadoText = estado.texto ? ` ${estado.texto}` : '';
+        const opacityStyle = estado.contar ? '' : 'opacity:0.5;';
+
         html += `
-          <div class="tooltip-resource">
+          <div class="tooltip-resource" style="${opacityStyle}">
             <div class="res-avatar">${inicial}</div>
             <div class="res-info">
-              <div class="res-name">${escapeHtml(res.nombre)}</div>
+              <div class="res-name">${escapeHtml(res.nombre)}<span style="font-size:0.5rem; color:#f87171; margin-left:4px;">${estadoText}</span></div>
               <div class="res-equipos">${equiposHtml}</div>
               <div class="res-tecnica">${fechasTooltip}${escapeHtml(res.tecnica || 'Técnica no especificada')} · ${res.horas || 0}h</div>
             </div>
@@ -5813,7 +6028,7 @@
   }
 
   // ==============================================================
-  // FUNCIÓN RENDERPROJECTS - COMPLETA
+  // FUNCIÓN RENDERPROJECTS - CON ESTADO STAND BY
   // ==============================================================
   function renderProjects() {
     const rowsContainer = document.getElementById("rowsContainer");
@@ -5834,9 +6049,14 @@
       infoDiv.className = "project-info";
       
       const estadoProyecto = proyecto.estado || 'Abierto';
-      const estadoBadge = estadoProyecto === 'Cerrado'
-        ? `<span class="badge-estado cerrado">Cerrado</span>`
-        : `<span class="badge-estado abierto">Abierto</span>`;
+      let estadoBadge = '';
+      if (estadoProyecto === 'Cerrado') {
+        estadoBadge = `<span class="badge-estado cerrado">Cerrado</span>`;
+      } else if (estadoProyecto === 'Stand by') {
+        estadoBadge = `<span class="badge-estado standby">Stand by</span>`;
+      } else {
+        estadoBadge = `<span class="badge-estado abierto">Abierto</span>`;
+      }
       const liderBadge = proyecto.lider
         ? `<span class="badge-lider" title="Líder de proyecto">${escapeHtml(proyecto.lider)}</span>`
         : '';
@@ -6102,7 +6322,6 @@
     let ocupados = 0;
 
     personalStock.forEach(p => {
-      // Solo contar personas ACTIVAS y de tipo Campo o HSE
       if ((p.estado || 'Activo') !== 'Activo') return;
       const tipo = (p.tipo || '').trim();
       if (tipo !== 'Campo' && tipo !== 'HSE') return;
@@ -6115,12 +6334,11 @@
           if (!fase || !fase.recursos) return false;
           return fase.recursos.some(recurso => {
             if (!recurso || recurso.nombre !== p.nombre) return false;
+            const estado = getEstadoRecursoEnFecha(p.nombre, fase.inicio, fase.fin);
+            if (!estado.contar) return false;
             const ini = parseFechaLocal(recurso.inicio || fase.inicio);
             const fin = parseFechaLocal(recurso.fin || fase.fin);
             if (isNaN(ini) || isNaN(fin)) return false;
-            // Verificar que el recurso esté ACTIVO en la fecha de hoy (no caducado)
-            const estado = getEstadoRecursoEnFecha(p.nombre, fase.inicio, fase.fin);
-            if (!estado.contar) return false;
             return hoy >= ini && hoy <= fin;
           });
         });
@@ -6144,12 +6362,13 @@
   }
 
   // ==============================================================
-  // DASHBOARD DE PROYECTOS ACTIVOS POR LÍDER
+  // DASHBOARD DE PROYECTOS ACTIVOS POR LÍDER (SOLO ESTADO "Abierto")
   // ==============================================================
   function calcularProyectosPorLider() {
     const conteo = {};
 
     proyectos.forEach(p => {
+      // Solo proyectos con estado "Abierto" cuentan para el dashboard
       if (!p || (p.estado || 'Abierto') !== 'Abierto') return;
       const lider = (p.lider || 'Sin líder').trim().toUpperCase();
       if (!lider) return;
@@ -6211,8 +6430,16 @@
 
     document.getElementById('tarjetaProyectoTitle').textContent = proyecto.id + ' — ' + proyecto.nombre;
 
-    const estadoClass = (proyecto.estado || 'Abierto') === 'Abierto' ? 'activo' : 'caducado';
-    const estadoText = (proyecto.estado || 'Abierto') === 'Abierto' ? 'Abierto' : 'Cerrado';
+    let estadoClass = 'activo';
+    let estadoText = 'Abierto';
+    if ((proyecto.estado || 'Abierto') === 'Cerrado') {
+      estadoClass = 'caducado';
+      estadoText = 'Cerrado';
+    } else if ((proyecto.estado || 'Abierto') === 'Stand by') {
+      estadoClass = 'caducado';
+      estadoText = 'Stand by';
+    }
+    
     const montoFormateado = proyecto.montoOC 
       ? '$' + proyecto.montoOC.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' USD'
       : 'No registrado';
@@ -6294,7 +6521,6 @@
           if (!fase || !fase.recursos) return false;
           return fase.recursos.some(recurso => {
             if (!recurso || recurso.nombre !== p.nombre) return false;
-            // Verificar estado del recurso en la fase
             const estado = getEstadoRecursoEnFecha(p.nombre, fase.inicio, fase.fin);
             if (!estado.contar) return false;
             const ini = parseFechaLocal(recurso.inicio || fase.inicio);

@@ -3067,7 +3067,10 @@
           Nombre: p.nombre,
           Cliente: p.cliente,
           Lider: p.lider || '',
-          Estado: p.estado || 'Abierto'
+          Estado: p.estado || 'Abierto',
+          MontoOC: p.montoOC !== undefined && p.montoOC !== null ? p.montoOC : '',
+          Contacto: p.contacto || '',
+          Correo: p.correo || ''
         }));
         tareas.push(
           guardarEnSheets('Proyectos', proyectosData).then(() => { dirty.proyectos = false; })

@@ -3986,9 +3986,9 @@
     
     equiposConEstado.forEach(e => {
       const sel = selected === e.nombre ? 'selected' : '';
-      const estado = e.disponible ? '[Disp.]' : '[Ocup.]';
-      const label = e.disponible ? e.nombre : `${e.nombre} (Ocupado)`;
-      html += `<option value="${e.nombre}" ${sel} data-disponible="${e.disponible}">${estado} ${label}</option>`;
+      const estadoIcon = e.disponible ? '🟢' : '🔴';
+      const label = e.disponible ? `${estadoIcon} ${e.nombre}` : `${estadoIcon} ${e.nombre} (Ocupado)`;
+      html += `<option value="${e.nombre}" ${sel} data-disponible="${e.disponible}">${label}</option>`;
     });
     
     return html;
@@ -4174,9 +4174,9 @@
     
     personalConEstado.forEach(p => {
       const sel = selected === p.nombre ? 'selected' : '';
-      const estado = p.disponible ? '🟢' : '🔴';
-      const label = p.disponible ? p.nombre : `${p.nombre} (Ocupado)`;
-      html += `<option value="${p.nombre}" ${sel} data-disponible="${p.disponible}">${estado} ${label}</option>`;
+      const estadoIcon = p.disponible ? '🟢' : '🔴';
+      const label = p.disponible ? `${estadoIcon} ${p.nombre}` : `${estadoIcon} ${p.nombre} (Ocupado)`;
+      html += `<option value="${p.nombre}" ${sel} data-disponible="${p.disponible}">${label}</option>`;
     });
     
     return html;
@@ -4944,7 +4944,8 @@
   }
 
   // ==============================================================
-  // VALIDACIÓN DE CONFLICTOS DE RECURSOS
+  // VALIDACIÓN DE CONFLICTOS DE RECURSOS - CORREGIDO
+  // Ahora usa las fechas ESPECÍFICAS del recurso, no las de la fase
   // ==============================================================
   function validarConflictosRecursosProyecto(proyecto) {
     const conflictos = [];
@@ -4953,6 +4954,7 @@
       if (!fase.recursos || fase.recursos.length === 0) continue;
 
       for (const recurso of fase.recursos) {
+        // USAR FECHAS DEL RECURSO (si existen) o las de la fase
         const resInicio = recurso.inicio || fase.inicio;
         const resFin = recurso.fin || fase.fin;
 
@@ -4962,7 +4964,11 @@
           );
           if (conflictoPersona) {
             conflictos.push({
-              tipo: 'persona', nombre: recurso.nombre, fase: fase.nombre,
+              tipo: 'persona', 
+              nombre: recurso.nombre, 
+              fase: fase.nombre,
+              recursoInicio: recurso.inicio,
+              recursoFin: recurso.fin,
               conflicto: conflictoPersona
             });
           }
@@ -4975,8 +4981,13 @@
             );
             if (conflictoEquipo) {
               conflictos.push({
-                tipo: 'equipo', nombre: equipo, fase: fase.nombre,
-                recurso: recurso.nombre, conflicto: conflictoEquipo
+                tipo: 'equipo', 
+                nombre: equipo, 
+                fase: fase.nombre,
+                recurso: recurso.nombre,
+                recursoInicio: recurso.inicio,
+                recursoFin: recurso.fin,
+                conflicto: conflictoEquipo
               });
             }
           }
@@ -4999,12 +5010,18 @@
         if (!fase.recursos) continue;
         for (const recurso of fase.recursos) {
           if (recurso.nombre !== nombrePersona) continue;
+          // USAR FECHAS DEL RECURSO, no las de la fase
           const ai = parseFechaLocal(recurso.inicio || fase.inicio);
           const af = parseFechaLocal(recurso.fin || fase.fin);
           if (fi <= af && ff >= ai) {
             return {
-              proyecto: proyecto.nombre, proyectoId: proyecto.id,
-              fase: fase.nombre, inicio: recurso.inicio || fase.inicio, fin: recurso.fin || fase.fin
+              proyecto: proyecto.nombre, 
+              proyectoId: proyecto.id,
+              fase: fase.nombre, 
+              inicio: recurso.inicio || fase.inicio, 
+              fin: recurso.fin || fase.fin,
+              recursoInicio: recurso.inicio,
+              recursoFin: recurso.fin
             };
           }
         }
@@ -5026,13 +5043,19 @@
         if (!fase.recursos) continue;
         for (const recurso of fase.recursos) {
           if (!recurso.equipos || !recurso.equipos.includes(equipoNombre)) continue;
+          // USAR FECHAS DEL RECURSO, no las de la fase
           const ai = parseFechaLocal(recurso.inicio || fase.inicio);
           const af = parseFechaLocal(recurso.fin || fase.fin);
           if (fi <= af && ff >= ai) {
             return {
-              proyecto: proyecto.nombre, proyectoId: proyecto.id,
-              fase: fase.nombre, recurso: recurso.nombre,
-              inicio: recurso.inicio || fase.inicio, fin: recurso.fin || fase.fin
+              proyecto: proyecto.nombre, 
+              proyectoId: proyecto.id,
+              fase: fase.nombre, 
+              recurso: recurso.nombre,
+              inicio: recurso.inicio || fase.inicio, 
+              fin: recurso.fin || fase.fin,
+              recursoInicio: recurso.inicio,
+              recursoFin: recurso.fin
             };
           }
         }
@@ -5126,22 +5149,26 @@
       });
     }
 
-    // VALIDAR CONFLICTOS
+    // VALIDAR CONFLICTOS - usando fechas de recursos
     const conflictos = validarConflictosRecursosProyecto(newProject);
     if (conflictos.length > 0) {
       const lista = conflictos.map(c => {
         const inicio = formatearFechaDDMM(c.conflicto.inicio);
         const fin = formatearFechaDDMM(c.conflicto.fin);
+        // Mostrar si el recurso tiene fechas específicas
+        const rangoRecurso = (c.recursoInicio && c.recursoFin) 
+          ? ` (asignado ${formatearFechaDDMM(c.recursoInicio)} → ${formatearFechaDDMM(c.recursoFin)})`
+          : '';
         if (c.tipo === 'persona') {
           if (c.conflicto.bloqueo) {
-            return `• ${c.nombre} en "${c.fase}": ${c.conflicto.motivo} (${inicio} → ${fin})`;
+            return `• ${c.nombre} en "${c.fase}"${rangoRecurso}: ${c.conflicto.motivo} (${inicio} → ${fin})`;
           }
-          return `• ${c.nombre} en "${c.fase}": ocupado en "${c.conflicto.proyecto}" - ${c.conflicto.fase} (${inicio} → ${fin})`;
+          return `• ${c.nombre} en "${c.fase}"${rangoRecurso}: ocupado en "${c.conflicto.proyecto}" - ${c.conflicto.fase} (${inicio} → ${fin})`;
         } else {
           if (c.conflicto.bloqueo) {
-            return `• 🔧 ${c.nombre} (asignado a ${c.recurso}) en "${c.fase}": ${c.conflicto.motivo} (${inicio} → ${fin})`;
+            return `• 🔧 ${c.nombre} (${c.recurso}) en "${c.fase}"${rangoRecurso}: ${c.conflicto.motivo} (${inicio} → ${fin})`;
           }
-          return `• 🔧 ${c.nombre} (asignado a ${c.recurso}) en "${c.fase}": ocupado en "${c.conflicto.proyecto}" - ${c.conflicto.fase} (${inicio} → ${fin})`;
+          return `• 🔧 ${c.nombre} (${c.recurso}) en "${c.fase}"${rangoRecurso}: ocupado en "${c.conflicto.proyecto}" - ${c.conflicto.fase} (${inicio} → ${fin})`;
         }
       }).join('\n');
 
@@ -5405,7 +5432,7 @@
   }
 
   // ==============================================================
-  // getEstadoRecursoEnFecha - CORREGIDO
+  // getEstadoRecursoEnFecha
   // ==============================================================
   function getEstadoRecursoEnFecha(nombrePersona, fechaInicioFase, fechaFinFase) {
     const nombreBuscar = String(nombrePersona || '').trim();
@@ -5504,7 +5531,6 @@
             tooltip = ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"`;
           }
           
-          // Verificar calibración
           const equipoStock = equiposStock.find(e => e.nombre === eq);
           if (equipoStock && equipoStock.calibracion) {
             const hoy = new Date();
@@ -5625,7 +5651,6 @@
       let clase = disponibilidad.disponible ? 'disponible' : 'ocupado';
       let tooltip = disponibilidad.disponible ? ' title="Equipo disponible"' : ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"`;
       
-      // Verificar calibración
       const equipoStock = equiposStock.find(e => e.nombre === eq);
       if (equipoStock && equipoStock.calibracion) {
         const hoy = new Date();
@@ -5870,7 +5895,6 @@
             tooltipTitle = ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"`;
           }
           
-          // Verificar calibración
           const equipoStock = equiposStock.find(e => e.nombre === eq);
           if (equipoStock && equipoStock.calibracion) {
             const hoy = new Date();
@@ -5889,7 +5913,6 @@
           ? `📅 ${formatearFechaDDMM(res.inicio)}→${formatearFechaDDMM(res.fin)} · `
           : '';
 
-        // Estado del recurso
         const estado = getEstadoRecursoEnFecha(res.nombre, fase.inicio, fase.fin);
         const estadoText = estado.texto ? ` ${estado.texto}` : '';
         const opacityStyle = estado.contar ? '' : 'opacity:0.5;';
@@ -6031,7 +6054,7 @@
   }
 
   // ==============================================================
-  // FUNCIÓN RENDERPROJECTS - CON ESTADO STAND BY
+  // FUNCIÓN RENDERPROJECTS
   // ==============================================================
   function renderProjects() {
     const rowsContainer = document.getElementById("rowsContainer");
@@ -6371,7 +6394,6 @@
     const conteo = {};
 
     proyectos.forEach(p => {
-      // Solo proyectos con estado "Abierto" cuentan para el dashboard
       if (!p || (p.estado || 'Abierto') !== 'Abierto') return;
       const lider = (p.lider || 'Sin líder').trim().toUpperCase();
       if (!lider) return;

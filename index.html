@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="logo.png">
   <style>
     /* ============================================ */
-    /* ESTILOS BASE - MANTENIDOS IGUAL QUE ANTES */
+    /* ESTILOS BASE */
     /* ============================================ */
     * {
       margin: 0;
@@ -210,7 +210,7 @@
     }
 
     /* ============================================ */
-    /* ESTILOS DEL DASHBOARD - MANTENIDOS */
+    /* ESTILOS DEL DASHBOARD */
     /* ============================================ */
     .app-header {
       background: #0f172a;
@@ -3107,6 +3107,50 @@
   }
 
   // ==============================================================
+  // VARIABLES GLOBALES
+  // ==============================================================
+  let proyectos = [];
+  let equiposStock = [];
+  let personalStock = [];
+  let bloqueosEquipos = [];
+  let bloqueosPersonal = [];
+  let currentUser = null;
+  let selectedProfile = null;
+  let sincronizando = false;
+  let datosCargados = false;
+  let actualizando = false;
+  let resourceIdCounter = 100;
+  let bloqueoEquipoIdCounter = 1;
+  let bloqueoPersonaIdCounter = 1;
+  let faseCounter = 0;
+  let editingProjectIndex = -1;
+  let currentProject = null;
+  let currentFase = null;
+  let currentFaseIndex = -1;
+  let editingResourceId = null;
+  let equiposSeleccionados = [];
+  let cambiosRecursosPendientes = false;
+
+  const dirty = {
+    proyectos: true,
+    fases: true,
+    equipos: true,
+    personal: true,
+    asignaciones: true,
+    bloqueosEquipos: true,
+    bloqueosPersonal: true
+  };
+
+  function marcarDirty(...claves) {
+    claves.forEach(k => { dirty[k] = true; });
+  }
+
+  const ADMIN_CREDENTIALS = {
+    username: 'admin',
+    password: 'Ingenieria2026'
+  };
+
+  // ==============================================================
   // CERRAR SESIÓN AL CERRAR LA PÁGINA
   // ==============================================================
   window.addEventListener('beforeunload', function() {
@@ -3114,13 +3158,6 @@
     currentUser = null;
     selectedProfile = null;
   });
-
-  // ==============================================================
-  // ESTADO DE SINCRONIZACIÓN
-  // ==============================================================
-  let sincronizando = false;
-  let datosCargados = false;
-  let loginCompletado = false;
 
   // ==============================================================
   // FUNCIONES DE SINCRONIZACIÓN CON GOOGLE SHEETS
@@ -3196,7 +3233,6 @@
               });
             });
             
-            // Guardar equipos asignados a fase
             if (f.equiposFase && f.equiposFase.length > 0) {
               f.equiposFase.forEach(eq => {
                 asignacionesData.push({
@@ -3308,7 +3344,7 @@
     const MAX_INTENTOS = 5;
     
     try {
-      const url = `${GOOGLE_SHEETS_URL}?action=set&sheet=${encodeURIComponent(nombreHoja)}`;
+      const url = `${GOOGLE_SHEETS_URL}?action=set&sheet=${encodeURIComponent(nombreHoja)}&_ts=${Date.now()}`;
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -3375,10 +3411,8 @@
           .map(x => x.trim())
           .filter(Boolean);
         
-        // Detectar si es equipo de fase (nombre con prefijo "📦")
         const nombre = asig.Nombre || asig.nombre || '';
         if (nombre.startsWith('📦') && equiposArr.length > 0) {
-          // Es un equipo asignado a fase
           if (!equiposFasePorFaseId[faseId]) equiposFasePorFaseId[faseId] = [];
           equiposFasePorFaseId[faseId].push({
             nombre: equiposArr[0],
@@ -3447,55 +3481,6 @@
       correo: proy.Correo || proy.correo || '',
       fases: fasesPorProyecto[proy.ID || proy.id || ''] || []
     })).filter(p => p.id && p.nombre);
-  }
-
-  let actualizando = false;
-  
-  async function actualizarDatos() {
-    if (actualizando || sincronizando) return;
-    
-    const btnRefresh = document.getElementById('btnRefresh');
-    actualizando = true;
-    btnRefresh.classList.add('syncing');
-    btnRefresh.textContent = '⬇️ Actualizando...';
-    
-    try {
-      const habiaCambiosPendientes = cambiosRecursosPendientes ||
-        dirty.proyectos || dirty.fases || dirty.equipos || dirty.personal || dirty.asignaciones;
-      
-      if (habiaCambiosPendientes) {
-        cambiosRecursosPendientes = false;
-        await syncWithSheets(true);
-      }
-      
-      datosCargados = false;
-      await cargarDatosDesdeSheetsCompleto(true);
-    } finally {
-      actualizando = false;
-      btnRefresh.classList.remove('syncing');
-      btnRefresh.textContent = '⬇️ Actualizar';
-    }
-  }
-
-  function mostrarToastActualizado() {
-    let toast = document.getElementById('toastActualizado');
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.id = 'toastActualizado';
-      toast.style.cssText = `
-        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-        background: linear-gradient(145deg, #1e293b, #0f172a);
-        border: 1px solid #4CAF50; color: #e2e8f0;
-        padding: 10px 18px; border-radius: 10px; font-size: 0.75rem;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index: 20000;
-        opacity: 0; transition: opacity 0.25s ease; pointer-events: none;
-      `;
-      document.body.appendChild(toast);
-    }
-    toast.textContent = '✅ Datos actualizados con lo último de Google Sheets';
-    toast.style.opacity = '1';
-    clearTimeout(toast._timeout);
-    toast._timeout = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
   }
 
   async function cargarDatosDespuesLogin() {
@@ -3608,11 +3593,56 @@
     }
   }
 
-  // ==============================================================
-  // DATOS DE PROYECTOS CON RECURSOS
-  // ==============================================================
-  let proyectos = [];
+  function mostrarToastActualizado() {
+    let toast = document.getElementById('toastActualizado');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'toastActualizado';
+      toast.style.cssText = `
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: linear-gradient(145deg, #1e293b, #0f172a);
+        border: 1px solid #4CAF50; color: #e2e8f0;
+        padding: 10px 18px; border-radius: 10px; font-size: 0.75rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index: 20000;
+        opacity: 0; transition: opacity 0.25s ease; pointer-events: none;
+      `;
+      document.body.appendChild(toast);
+    }
+    toast.textContent = '✅ Datos actualizados con lo último de Google Sheets';
+    toast.style.opacity = '1';
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+  }
 
+  async function actualizarDatos() {
+    if (actualizando || sincronizando) return;
+    
+    const btnRefresh = document.getElementById('btnRefresh');
+    actualizando = true;
+    btnRefresh.classList.add('syncing');
+    btnRefresh.textContent = '⬇️ Actualizando...';
+    
+    try {
+      const habiaCambiosPendientes = cambiosRecursosPendientes ||
+        dirty.proyectos || dirty.fases || dirty.equipos || dirty.personal || dirty.asignaciones;
+      
+      if (habiaCambiosPendientes) {
+        cambiosRecursosPendientes = false;
+        await syncWithSheets(true);
+      }
+      
+      datosCargados = false;
+      await cargarDatosDesdeSheetsCompleto(true);
+    } finally {
+      actualizando = false;
+      btnRefresh.classList.remove('syncing');
+      btnRefresh.textContent = '⬇️ Actualizar';
+    }
+  }
+
+  // ==============================================================
+  // FUNCIONES DE EJEMPLO Y ORDENAMIENTO
+  // ==============================================================
   function cargarDatosEjemplo() {
     proyectos = [
       {
@@ -3671,25 +3701,6 @@
     saveToLocalStorage();
   }
 
-  // ==============================================================
-  // LISTA DE EQUIPOS (Stock) - con fecha de calibración
-  // ==============================================================
-  let equiposStock = [
-    { nombre: "OMNISCAN", codigo: "ACG-EI-025", calibracion: "2025-12-31" },
-    { nombre: "GEKKO", codigo: "ACG-EI-012", calibracion: "2025-10-15" },
-    { nombre: "MANTIS", codigo: "ACG-EI-013", calibracion: "" },
-    { nombre: "HYDROFORM", codigo: "ACG-EI-026", calibracion: "2026-01-20" },
-    { nombre: "DOPPLER", codigo: "ACG-EI-023", calibracion: "" },
-    { nombre: "R.SCAN", codigo: "ACG-EI-014", calibracion: "2025-09-30" },
-    { nombre: "NAVIC", codigo: "ACG-EQ-061", calibracion: "" },
-    { nombre: "FLEXOFORM", codigo: "ACG-EI-027", calibracion: "2026-03-10" },
-    { nombre: "FLOORMAP X", codigo: "ACG-EI-011", calibracion: "" },
-    { nombre: "38 DL PLUS", codigo: "ACG-EI-001", calibracion: "2025-08-01" },
-    { nombre: "38 DL PLUS", codigo: "ACG-EI-002", calibracion: "2025-08-01" },
-    { nombre: "SONOWALL", codigo: "ACG-EI-015", calibracion: "" },
-    { nombre: "YUGO MAGNETICO", codigo: "ACG-EQ-067", calibracion: "2025-11-30" }
-  ];
-
   function ordenarEquiposAlfabeticamente() {
     equiposStock.sort((a, b) => {
       const nombreA = a.nombre || '';
@@ -3706,17 +3717,24 @@
     });
   }
 
+  function ordenarProyectosPorID() {
+    proyectos.sort((a, b) => {
+      const idA = parseInt(a.id) || 0;
+      const idB = parseInt(b.id) || 0;
+      if (idA !== idB) {
+        return idA - idB;
+      }
+      return 0;
+    });
+  }
+
+  function generarFaseId() {
+    return 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  }
+
   // ==============================================================
   // SISTEMA DE LOGIN Y PERFILES
   // ==============================================================
-  let currentUser = null;
-  let selectedProfile = null;
-
-  const ADMIN_CREDENTIALS = {
-    username: 'admin',
-    password: 'Ingenieria2026'
-  };
-
   function selectProfile(profile) {
     selectedProfile = profile;
     document.querySelectorAll('.profile-btn').forEach(btn => {
@@ -3828,6 +3846,21 @@
     return currentUser && currentUser.role === 'admin';
   }
 
+  function checkSession() {
+    try {
+      const session = localStorage.getItem('userSession');
+      if (session) {
+        const parsed = JSON.parse(session);
+        if (parsed && parsed.role) {
+          currentUser = parsed;
+          loginSuccess();
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  }
+
   // ==============================================================
   // FILTROS DE PROYECTOS
   // ==============================================================
@@ -3911,19 +3944,53 @@
     return true;
   }
 
-  function checkSession() {
+  // ==============================================================
+  // PERSISTENCIA EN LOCALSTORAGE
+  // ==============================================================
+  function saveToLocalStorage() {
     try {
-      const session = localStorage.getItem('userSession');
-      if (session) {
-        const parsed = JSON.parse(session);
-        if (parsed && parsed.role) {
-          currentUser = parsed;
-          loginSuccess();
-          return true;
+      localStorage.setItem('proyectosRecursos', JSON.stringify(proyectos));
+    } catch (e) {
+      console.warn('No se pudo guardar en localStorage:', e);
+    }
+  }
+
+  function loadFromLocalStorage() {
+    try {
+      const data = localStorage.getItem('proyectosRecursos');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && parsed.length > 0) {
+          proyectos = parsed;
         }
       }
+    } catch (e) {
+      console.warn('No se pudo cargar desde localStorage:', e);
+    }
+  }
+
+  function guardarEquiposStock() {
+    try {
+      localStorage.setItem('equiposStock', JSON.stringify(equiposStock));
     } catch (e) {}
-    return false;
+  }
+
+  function guardarPersonalStock() {
+    try {
+      localStorage.setItem('personalStock', JSON.stringify(personalStock));
+    } catch (e) {}
+  }
+
+  function guardarBloqueosEquiposLocal() {
+    try {
+      localStorage.setItem('bloqueosEquipos', JSON.stringify(bloqueosEquipos));
+    } catch (e) {}
+  }
+
+  function guardarBloqueosPersonalLocal() {
+    try {
+      localStorage.setItem('bloqueosPersonal', JSON.stringify(bloqueosPersonal));
+    } catch (e) {}
   }
 
   // ==============================================================
@@ -3940,18 +4007,16 @@
   let indexPersonas = null;
   let timeoutVerificacionPersona = null;
 
-  // ==============================================================
-  // FUNCIÓN DE ORDENAMIENTO POR ID
-  // ==============================================================
-  function ordenarProyectosPorID() {
-    proyectos.sort((a, b) => {
-      const idA = parseInt(a.id) || 0;
-      const idB = parseInt(b.id) || 0;
-      if (idA !== idB) {
-        return idA - idB;
-      }
-      return 0;
-    });
+  function limpiarCacheEquipos() {
+    cacheAsignacionesEquipos = null;
+    cacheTimestamp = 0;
+    indexEquipos = null;
+  }
+
+  function limpiarCachePersonas() {
+    cacheAsignacionesPersonas = null;
+    cachePersonasTimestamp = 0;
+    indexPersonas = null;
   }
 
   // ==============================================================
@@ -3996,7 +4061,6 @@
       proyecto.fases.forEach(fase => {
         if (!fase) return;
         
-        // Equipos de fase
         if (fase.equiposFase) {
           fase.equiposFase.forEach(equipoFase => {
             if (!equipoFase || !equipoFase.nombre) return;
@@ -4011,7 +4075,6 @@
           });
         }
         
-        // Equipos de recursos
         if (!fase.recursos) return;
         fase.recursos.forEach(recurso => {
           if (!recurso || !recurso.equipos || !Array.isArray(recurso.equipos)) return;
@@ -4033,12 +4096,6 @@
 
     indexEquipos = index;
     return index;
-  }
-
-  function limpiarCacheEquipos() {
-    cacheAsignacionesEquipos = null;
-    cacheTimestamp = 0;
-    indexEquipos = null;
   }
 
   function verificarBloqueoEquipo(equipoNombre, fechaInicio, fechaFin) {
@@ -4106,8 +4163,10 @@
     };
   }
 
-  function getEquiposConDisponibilidad(fechaInicio, fechaFin, proyectoId) {
-    return equiposStock.map(equipo => {
+  function getEquiposSelectOptionsConDisponibilidad(selected, fechaInicio, fechaFin, proyectoId) {
+    let html = '<option value="">Seleccionar equipo...</option>';
+    
+    const equiposConEstado = equiposStock.map(equipo => {
       const disponibilidad = getEquipoDisponibilidad(equipo.nombre, fechaInicio, fechaFin, proyectoId);
       return {
         ...equipo,
@@ -4115,12 +4174,6 @@
         conflicto: disponibilidad.conflicto
       };
     });
-  }
-
-  function getEquiposSelectOptionsConDisponibilidad(selected, fechaInicio, fechaFin, proyectoId) {
-    let html = '<option value="">Seleccionar equipo...</option>';
-    
-    const equiposConEstado = getEquiposConDisponibilidad(fechaInicio, fechaFin, proyectoId);
     
     equiposConEstado.forEach(e => {
       const sel = selected === e.nombre ? 'selected' : '';
@@ -4130,32 +4183,6 @@
     });
     
     return html;
-  }
-
-  function mostrarMensajeEquipoOcupado(conflicto) {
-    if (!conflicto) return '';
-    
-    const inicio = formatearFechaDDMM(conflicto.inicio);
-    const fin = formatearFechaDDMM(conflicto.fin);
-    
-    if (conflicto.bloqueo) {
-      return `
-        <div class="equipo-ocupado-msg">
-          🔧 Este equipo está en <strong>${escapeHtml(conflicto.motivo)}</strong><br>
-          Período: ${inicio} → ${fin}
-        </div>
-      `;
-    }
-    
-    return `
-      <div class="equipo-ocupado-msg">
-        ⚠️ Este equipo está ocupado en:<br>
-        <strong>${conflicto.proyecto}</strong> (${conflicto.proyectoId})<br>
-        Fase: <strong>${conflicto.fase}</strong><br>
-        Recurso: ${conflicto.recurso}<br>
-        Período: ${inicio} → ${fin}
-      </div>
-    `;
   }
 
   // ==============================================================
@@ -4217,12 +4244,6 @@
 
     indexPersonas = index;
     return index;
-  }
-
-  function limpiarCachePersonas() {
-    cacheAsignacionesPersonas = null;
-    cachePersonasTimestamp = 0;
-    indexPersonas = null;
   }
 
   function verificarBloqueoPersona(nombrePersona, fechaInicio, fechaFin) {
@@ -4292,8 +4313,10 @@
     };
   }
 
-  function getPersonalActivoConDisponibilidad(fechaInicio, fechaFin, faseId, proyectoActualId) {
-    return personalStock
+  function getPersonalSelectOptionsConDisponibilidad(selected, fechaInicio, fechaFin, faseId, proyectoActualId) {
+    let html = '<option value="">Seleccionar persona...</option>';
+    
+    const personalConEstado = personalStock
       .filter(p => (p.estado || 'Activo') === 'Activo')
       .map(persona => {
         const disponibilidad = getPersonaDisponibilidad(persona.nombre, fechaInicio, fechaFin, faseId, proyectoActualId);
@@ -4303,12 +4326,6 @@
           conflicto: disponibilidad.conflicto
         };
       });
-  }
-
-  function getPersonalSelectOptionsConDisponibilidad(selected, fechaInicio, fechaFin, faseId, proyectoActualId) {
-    let html = '<option value="">Seleccionar persona...</option>';
-    
-    const personalConEstado = getPersonalActivoConDisponibilidad(fechaInicio, fechaFin, faseId, proyectoActualId);
     
     personalConEstado.forEach(p => {
       const sel = selected === p.nombre ? 'selected' : '';
@@ -4320,55 +4337,9 @@
     return html;
   }
 
-  function mostrarMensajePersonaOcupada(conflicto) {
-    if (!conflicto) return '';
-    
-    const inicio = formatearFechaDDMM(conflicto.inicio);
-    const fin = formatearFechaDDMM(conflicto.fin);
-    
-    if (conflicto.bloqueo) {
-      return `
-        <div class="equipo-ocupado-msg">
-          🏖️ Esta persona está de <strong>${escapeHtml(conflicto.motivo)}</strong><br>
-          Período: ${inicio} → ${fin}
-        </div>
-      `;
-    }
-    
-    return `
-      <div class="equipo-ocupado-msg">
-        ⚠️ Esta persona está ocupada en:<br>
-        <strong>${conflicto.proyecto}</strong> (${conflicto.proyectoId})<br>
-        Fase: <strong>${conflicto.fase}</strong><br>
-        Período: ${inicio} → ${fin}
-      </div>
-    `;
-  }
-
   // ==============================================================
   // GESTIÓN DE PERSONAL
   // ==============================================================
-  let personalStock = [];
-
-  function cargarPersonalStock() {
-    try {
-      const data = localStorage.getItem('personalStock');
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (parsed && parsed.length > 0) {
-          personalStock = parsed;
-          ordenarPersonalAlfabeticamente();
-        }
-      }
-    } catch (e) {}
-  }
-
-  function guardarPersonalStock() {
-    try {
-      localStorage.setItem('personalStock', JSON.stringify(personalStock));
-    } catch (e) {}
-  }
-
   function openPersonalModal() {
     if (!userCanEdit()) {
       alert('No tienes permisos para administrar personal');
@@ -4394,11 +4365,6 @@
     personalStock.forEach((persona, index) => {
       const estado = persona.estado || 'Activo';
       const esActivo = estado === 'Activo';
-      const tipoLabel = {
-        'HSE': 'HSE',
-        'Campo': 'Campo',
-        'Técnica': 'Tec'
-      }[persona.tipo] || 'Otro';
 
       const fechaInicioStr = persona.fechaInicio 
         ? `<span>Inicio: <strong>${formatearFechaDDMM(persona.fechaInicio)}</strong></span>` 
@@ -4432,6 +4398,82 @@
       `;
     });
     container.innerHTML = html;
+  }
+
+  function togglePersonaEstado(index) {
+    const persona = personalStock[index];
+    const esActivo = (persona.estado || 'Activo') === 'Activo';
+
+    if (esActivo) {
+      const fechaCaducidad = prompt(
+        `Caducar a "${persona.nombre}"\n\nIngresa la fecha de caducidad (YYYY-MM-DD):`,
+        new Date().toISOString().split('T')[0]
+      );
+      if (!fechaCaducidad) return;
+      if (!fechaCaducidad.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        alert('Formato de fecha inválido. Usa YYYY-MM-DD');
+        return;
+      }
+      persona.estado = 'Caducado';
+      persona.fechaCaducidad = fechaCaducidad;
+    } else {
+      persona.estado = 'Activo';
+      persona.fechaCaducidad = '';
+    }
+
+    guardarPersonalStock();
+    marcarDirty('personal');
+    renderPersonalList();
+    renderStatsBar();
+  }
+
+  function eliminarPersona(index) {
+    if (!confirm(`¿Eliminar a "${personalStock[index].nombre}" del registro?`)) return;
+    personalStock.splice(index, 1);
+    guardarPersonalStock();
+    marcarDirty('personal');
+    renderPersonalList();
+    renderStatsBar();
+  }
+
+  function agregarPersona() {
+    const nombre = document.getElementById('nuevaPersonaNombre').value.trim();
+    const certificacion = document.getElementById('nuevaPersonaCertificacion').value.trim();
+    const cargo = document.getElementById('nuevaPersonaCargo').value.trim();
+    const tipo = document.getElementById('nuevaPersonaTipo').value;
+    const fechaInicio = document.getElementById('nuevaPersonaFechaInicio').value;
+
+    if (!nombre) {
+      alert('El nombre de la persona es obligatorio');
+      return;
+    }
+
+    if (personalStock.some(p => p.nombre === nombre)) {
+      alert('Esta persona ya existe en el registro');
+      return;
+    }
+
+    personalStock.push({ 
+      nombre, 
+      certificacion, 
+      cargo: cargo || '',
+      tipo: tipo || 'Campo',
+      fechaInicio: fechaInicio || '',
+      fechaCaducidad: '',
+      estado: 'Activo' 
+    });
+    ordenarPersonalAlfabeticamente();
+    guardarPersonalStock();
+    marcarDirty('personal');
+
+    document.getElementById('nuevaPersonaNombre').value = '';
+    document.getElementById('nuevaPersonaCertificacion').value = '';
+    document.getElementById('nuevaPersonaCargo').value = '';
+    document.getElementById('nuevaPersonaTipo').value = 'Campo';
+    document.getElementById('nuevaPersonaFechaInicio').value = '';
+
+    renderPersonalList();
+    renderStatsBar();
   }
 
   function poblarSelectBloqueoPersona() {
@@ -4499,244 +4541,9 @@
     renderBloqueosPersonalList();
   }
 
-  function agregarPersona() {
-    const nombre = document.getElementById('nuevaPersonaNombre').value.trim();
-    const certificacion = document.getElementById('nuevaPersonaCertificacion').value.trim();
-    const cargo = document.getElementById('nuevaPersonaCargo').value.trim();
-    const tipo = document.getElementById('nuevaPersonaTipo').value;
-    const fechaInicio = document.getElementById('nuevaPersonaFechaInicio').value;
-
-    if (!nombre) {
-      alert('El nombre de la persona es obligatorio');
-      return;
-    }
-
-    if (personalStock.some(p => p.nombre === nombre)) {
-      alert('Esta persona ya existe en el registro');
-      return;
-    }
-
-    personalStock.push({ 
-      nombre, 
-      certificacion, 
-      cargo: cargo || '',
-      tipo: tipo || 'Campo',
-      fechaInicio: fechaInicio || '',
-      fechaCaducidad: '',
-      estado: 'Activo' 
-    });
-    ordenarPersonalAlfabeticamente();
-    guardarPersonalStock();
-    marcarDirty('personal');
-
-    document.getElementById('nuevaPersonaNombre').value = '';
-    document.getElementById('nuevaPersonaCertificacion').value = '';
-    document.getElementById('nuevaPersonaCargo').value = '';
-    document.getElementById('nuevaPersonaTipo').value = 'Campo';
-    document.getElementById('nuevaPersonaFechaInicio').value = '';
-
-    renderPersonalList();
-    renderStatsBar();
-  }
-
-  function togglePersonaEstado(index) {
-    const persona = personalStock[index];
-    const esActivo = (persona.estado || 'Activo') === 'Activo';
-
-    if (esActivo) {
-      const fechaCaducidad = prompt(
-        `Caducar a "${persona.nombre}"\n\nIngresa la fecha de caducidad (YYYY-MM-DD):`,
-        new Date().toISOString().split('T')[0]
-      );
-      if (!fechaCaducidad) return;
-      if (!fechaCaducidad.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        alert('Formato de fecha inválido. Usa YYYY-MM-DD');
-        return;
-      }
-      persona.estado = 'Caducado';
-      persona.fechaCaducidad = fechaCaducidad;
-    } else {
-      persona.estado = 'Activo';
-      persona.fechaCaducidad = '';
-    }
-
-    guardarPersonalStock();
-    marcarDirty('personal');
-    renderPersonalList();
-    renderStatsBar();
-  }
-
-  function eliminarPersona(index) {
-    if (!confirm(`¿Eliminar a "${personalStock[index].nombre}" del registro?`)) return;
-    personalStock.splice(index, 1);
-    guardarPersonalStock();
-    marcarDirty('personal');
-    renderPersonalList();
-    renderStatsBar();
-  }
-
-  // ==============================================================
-  // CONSULTA DE DISPONIBILIDAD (solo Visualizador)
-  // ==============================================================
-  function openConsultaModal() {
-    const selPersona = document.getElementById('consultaPersona');
-    selPersona.innerHTML = '<option value="">-- Ninguna --</option>' +
-      personalStock
-        .filter(p => (p.estado || 'Activo') === 'Activo')
-        .map(p => `<option value="${escapeHtml(p.nombre)}">${escapeHtml(p.nombre)}</option>`)
-        .join('');
-    
-    const selEquipo = document.getElementById('consultaEquipo');
-    selEquipo.innerHTML = '<option value="">-- Ninguno --</option>' +
-      equiposStock
-        .map(e => `<option value="${escapeHtml(e.nombre)}">${escapeHtml(e.nombre)}</option>`)
-        .join('');
-    
-    document.getElementById('consultaInicio').value = '';
-    document.getElementById('consultaFin').value = '';
-    document.getElementById('consultaResultado').innerHTML = '';
-    document.getElementById('consultaModal').classList.add('active');
-  }
-
-  function closeConsultaModal() {
-    document.getElementById('consultaModal').classList.remove('active');
-  }
-
-  function ejecutarConsultaDisponibilidad() {
-    const persona = document.getElementById('consultaPersona').value;
-    const equipo = document.getElementById('consultaEquipo').value;
-    const inicio = document.getElementById('consultaInicio').value;
-    const fin = document.getElementById('consultaFin').value;
-    const resultado = document.getElementById('consultaResultado');
-    
-    if (!persona && !equipo) {
-      resultado.innerHTML = `<div class="equipo-ocupado-msg">Selecciona al menos una persona o un equipo</div>`;
-      return;
-    }
-    if (!inicio || !fin) {
-      resultado.innerHTML = `<div class="equipo-ocupado-msg">Selecciona la fecha de inicio y de fin</div>`;
-      return;
-    }
-    if (parseFechaLocal(inicio) > parseFechaLocal(fin)) {
-      resultado.innerHTML = `<div class="equipo-ocupado-msg">La fecha de inicio no puede ser posterior a la de fin</div>`;
-      return;
-    }
-    
-    let html = '';
-    
-    if (persona) {
-      const conflicto = verificarDisponibilidadPersona(persona, inicio, fin, null);
-      if (!conflicto) {
-        html += `<div class="equipo-status disponible"><span class="status-dot"></span> "${escapeHtml(persona)}" está disponible en ese rango de fechas</div>`;
-      } else {
-        html += `
-          <div class="equipo-ocupado-msg">
-            🔴 "${escapeHtml(persona)}" está ocupado(a):<br>
-            <strong>${escapeHtml(conflicto.proyecto)}</strong> (${escapeHtml(conflicto.proyectoId)})<br>
-            Fase: <strong>${escapeHtml(conflicto.fase)}</strong><br>
-            Período: ${formatearFechaDDMM(conflicto.inicio)} → ${formatearFechaDDMM(conflicto.fin)}
-          </div>`;
-      }
-    }
-    
-    if (equipo) {
-      const conflicto = verificarDisponibilidadEquipo(equipo, inicio, fin, null);
-      if (!conflicto) {
-        html += `<div class="equipo-status disponible"><span class="status-dot"></span> "${escapeHtml(equipo)}" está disponible en ese rango de fechas</div>`;
-      } else {
-        html += `
-          <div class="equipo-ocupado-msg">
-            🔴 "${escapeHtml(equipo)}" está ocupado:<br>
-            <strong>${escapeHtml(conflicto.proyecto)}</strong> (${escapeHtml(conflicto.proyectoId)})<br>
-            Fase: <strong>${escapeHtml(conflicto.fase)}</strong><br>
-            Asignado a: ${escapeHtml(conflicto.recurso || '—')}<br>
-            Período: ${formatearFechaDDMM(conflicto.inicio)} → ${formatearFechaDDMM(conflicto.fin)}
-          </div>`;
-      }
-    }
-    
-    resultado.innerHTML = html;
-  }
-
   // ==============================================================
   // GESTIÓN DE EQUIPOS
   // ==============================================================
-  function cargarEquiposStock() {
-    try {
-      const data = localStorage.getItem('equiposStock');
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (parsed && parsed.length > 0) {
-          equiposStock = parsed;
-          ordenarEquiposAlfabeticamente();
-        }
-      }
-    } catch (e) {}
-  }
-
-  function guardarEquiposStock() {
-    try {
-      localStorage.setItem('equiposStock', JSON.stringify(equiposStock));
-    } catch (e) {}
-  }
-
-  // ==============================================================
-  // BLOQUEOS DE EQUIPOS
-  // ==============================================================
-  let bloqueosEquipos = [];
-  let bloqueoEquipoIdCounter = 1;
-
-  function cargarBloqueosEquipos() {
-    try {
-      const data = localStorage.getItem('bloqueosEquipos');
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (parsed && parsed.length > 0) bloqueosEquipos = parsed;
-      }
-    } catch (e) {}
-  }
-
-  function guardarBloqueosEquiposLocal() {
-    try {
-      localStorage.setItem('bloqueosEquipos', JSON.stringify(bloqueosEquipos));
-    } catch (e) {}
-  }
-
-  // ==============================================================
-  // BLOQUEOS DE PERSONAL
-  // ==============================================================
-  let bloqueosPersonal = [];
-  let bloqueoPersonaIdCounter = 1;
-
-  function cargarBloqueosPersonal() {
-    try {
-      const data = localStorage.getItem('bloqueosPersonal');
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (parsed && parsed.length > 0) bloqueosPersonal = parsed;
-      }
-    } catch (e) {}
-  }
-
-  function guardarBloqueosPersonalLocal() {
-    try {
-      localStorage.setItem('bloqueosPersonal', JSON.stringify(bloqueosPersonal));
-    } catch (e) {}
-  }
-
-  function getEquiposNombres() {
-    return equiposStock.map(e => e.nombre);
-  }
-
-  function getEquiposSelectOptions(selected) {
-    let html = '<option value="">Seleccionar equipo...</option>';
-    equiposStock.forEach(e => {
-      const sel = selected === e.nombre ? 'selected' : '';
-      html += `<option value="${e.nombre}" ${sel}>${e.nombre}</option>`;
-    });
-    return html;
-  }
-
   function openEquiposModal() {
     if (!userCanEdit()) {
       alert('No tienes permisos para administrar equipos');
@@ -4912,33 +4719,91 @@
   }
 
   // ==============================================================
-  // DEFINICIONES DE FASES PREDEFINIDAS
+  // CONSULTA DE DISPONIBILIDAD
   // ==============================================================
-  function generarFaseId() {
-    return 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  function openConsultaModal() {
+    const selPersona = document.getElementById('consultaPersona');
+    selPersona.innerHTML = '<option value="">-- Ninguna --</option>' +
+      personalStock
+        .filter(p => (p.estado || 'Activo') === 'Activo')
+        .map(p => `<option value="${escapeHtml(p.nombre)}">${escapeHtml(p.nombre)}</option>`)
+        .join('');
+    
+    const selEquipo = document.getElementById('consultaEquipo');
+    selEquipo.innerHTML = '<option value="">-- Ninguno --</option>' +
+      equiposStock
+        .map(e => `<option value="${escapeHtml(e.nombre)}">${escapeHtml(e.nombre)}</option>`)
+        .join('');
+    
+    document.getElementById('consultaInicio').value = '';
+    document.getElementById('consultaFin').value = '';
+    document.getElementById('consultaResultado').innerHTML = '';
+    document.getElementById('consultaModal').classList.add('active');
   }
 
-  const faseDefinitions = [
-    { nombre: "Recepción", color: "#2196F3" },
-    { nombre: "Inspección", color: "#FF9800" },
-    { nombre: "Reportes", color: "#4CAF50" },
-    { nombre: "Valorización", color: "#795548" },
-    { nombre: "Facturación", color: "#607D8B" },
-    { nombre: "Informe", color: "#E91E63" },
-    { nombre: "Habilitación", color: "#9C27B0" },
-    { nombre: "Informe Fase 1", color: "#E91E63" },
-    { nombre: "Informe Fase 2", color: "#E91E63" },
-    { nombre: "RBI", color: "#FFFACD" },
-    { nombre: "Presentación", color: "#4D27F5" },
-    { nombre: "Planificación", color: "#40E0D0" },
-  ];
+  function closeConsultaModal() {
+    document.getElementById('consultaModal').classList.remove('active');
+  }
+
+  function ejecutarConsultaDisponibilidad() {
+    const persona = document.getElementById('consultaPersona').value;
+    const equipo = document.getElementById('consultaEquipo').value;
+    const inicio = document.getElementById('consultaInicio').value;
+    const fin = document.getElementById('consultaFin').value;
+    const resultado = document.getElementById('consultaResultado');
+    
+    if (!persona && !equipo) {
+      resultado.innerHTML = `<div class="equipo-ocupado-msg">Selecciona al menos una persona o un equipo</div>`;
+      return;
+    }
+    if (!inicio || !fin) {
+      resultado.innerHTML = `<div class="equipo-ocupado-msg">Selecciona la fecha de inicio y de fin</div>`;
+      return;
+    }
+    if (parseFechaLocal(inicio) > parseFechaLocal(fin)) {
+      resultado.innerHTML = `<div class="equipo-ocupado-msg">La fecha de inicio no puede ser posterior a la de fin</div>`;
+      return;
+    }
+    
+    let html = '';
+    
+    if (persona) {
+      const conflicto = verificarDisponibilidadPersona(persona, inicio, fin, null);
+      if (!conflicto) {
+        html += `<div class="equipo-status disponible"><span class="status-dot"></span> "${escapeHtml(persona)}" está disponible en ese rango de fechas</div>`;
+      } else {
+        html += `
+          <div class="equipo-ocupado-msg">
+            🔴 "${escapeHtml(persona)}" está ocupado(a):<br>
+            <strong>${escapeHtml(conflicto.proyecto)}</strong> (${escapeHtml(conflicto.proyectoId)})<br>
+            Fase: <strong>${escapeHtml(conflicto.fase)}</strong><br>
+            Período: ${formatearFechaDDMM(conflicto.inicio)} → ${formatearFechaDDMM(conflicto.fin)}
+          </div>`;
+      }
+    }
+    
+    if (equipo) {
+      const conflicto = verificarDisponibilidadEquipo(equipo, inicio, fin, null);
+      if (!conflicto) {
+        html += `<div class="equipo-status disponible"><span class="status-dot"></span> "${escapeHtml(equipo)}" está disponible en ese rango de fechas</div>`;
+      } else {
+        html += `
+          <div class="equipo-ocupado-msg">
+            🔴 "${escapeHtml(equipo)}" está ocupado:<br>
+            <strong>${escapeHtml(conflicto.proyecto)}</strong> (${escapeHtml(conflicto.proyectoId)})<br>
+            Fase: <strong>${escapeHtml(conflicto.fase)}</strong><br>
+            Asignado a: ${escapeHtml(conflicto.recurso || '—')}<br>
+            Período: ${formatearFechaDDMM(conflicto.inicio)} → ${formatearFechaDDMM(conflicto.fin)}
+          </div>`;
+      }
+    }
+    
+    resultado.innerHTML = html;
+  }
 
   // ==============================================================
   // MODAL PARA AGREGAR/EDITAR PROYECTO
   // ==============================================================
-  let faseCounter = 0;
-  let editingProjectIndex = -1;
-
   function openAddProjectModal() {
     if (!userCanEdit()) {
       alert('No tienes permisos para agregar proyectos');
@@ -4992,9 +4857,21 @@
     editingProjectIndex = -1;
   }
 
-  // ==============================================================
-  // addFaseToModal
-  // ==============================================================
+  const faseDefinitions = [
+    { nombre: "Recepción", color: "#2196F3" },
+    { nombre: "Inspección", color: "#FF9800" },
+    { nombre: "Reportes", color: "#4CAF50" },
+    { nombre: "Valorización", color: "#795548" },
+    { nombre: "Facturación", color: "#607D8B" },
+    { nombre: "Informe", color: "#E91E63" },
+    { nombre: "Habilitación", color: "#9C27B0" },
+    { nombre: "Informe Fase 1", color: "#E91E63" },
+    { nombre: "Informe Fase 2", color: "#E91E63" },
+    { nombre: "RBI", color: "#FFFACD" },
+    { nombre: "Presentación", color: "#4D27F5" },
+    { nombre: "Planificación", color: "#40E0D0" },
+  ];
+
   function addFaseToModal(faseData) {
     const container = document.getElementById('fasesContainer');
     const faseId = ++faseCounter;
@@ -5082,8 +4959,7 @@
   }
 
   // ==============================================================
-  // VALIDACIÓN DE CONFLICTOS DE RECURSOS - CORREGIDO
-  // Ahora usa las fechas ESPECÍFICAS del recurso, no las de la fase
+  // VALIDACIÓN DE CONFLICTOS DE RECURSOS
   // ==============================================================
   function validarConflictosRecursosProyecto(proyecto) {
     const conflictos = [];
@@ -5131,7 +5007,6 @@
         }
       }
       
-      // Validar equipos de fase
       if (fase.equiposFase && fase.equiposFase.length > 0) {
         for (const eqFase of fase.equiposFase) {
           const eqInicio = eqFase.inicio || fase.inicio;
@@ -5198,7 +5073,6 @@
     for (const proyecto of proyectos) {
       if (String(proyecto.id) === String(proyectoActualId)) continue;
       for (const fase of proyecto.fases) {
-        // Verificar equipos de fase
         if (fase.equiposFase) {
           for (const eqFase of fase.equiposFase) {
             if (eqFase.nombre !== equipoNombre) continue;
@@ -5244,7 +5118,6 @@
 
   // ==============================================================
   // getEstadoRecursoEnFecha - CORREGIDO
-  // Muestra "Ingresa DD/MM" en color naranja y SÍ cuenta el recurso
   // ==============================================================
   function getEstadoRecursoEnFecha(nombrePersona, fechaInicioFase, fechaFinFase) {
     const nombreBuscar = String(nombrePersona || '').trim();
@@ -5264,22 +5137,18 @@
       return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
     }
 
-    // Verificar si es nuevo (fecha de inicio posterior al inicio de la fase)
-    // PERO si la fecha de inicio es menor o igual a la fecha de fin de la fase, SÍ cuenta
     if (persona.fechaInicio) {
       const fechaInicioContrato = parseFechaLocal(persona.fechaInicio);
       if (!isNaN(fechaInicioContrato)) {
-        // Si el contrato inicia DENTRO del rango de la fase o antes del fin de la fase
         if (fechaInicioContrato > faseInicio && fechaInicioContrato <= faseFin) {
           return { 
             activo: true, 
             estado: 'Ingreso futuro', 
             clase: 'ingreso-futuro', 
             texto: `Ingresa ${formatearFechaDDMM(persona.fechaInicio)}`, 
-            contar: true  // SÍ se cuenta
+            contar: true
           };
         }
-        // Si el contrato inicia después del fin de la fase, NO cuenta
         if (fechaInicioContrato > faseFin) {
           return { 
             activo: false, 
@@ -5292,7 +5161,6 @@
       }
     }
 
-    // Verificar si está caducado
     if ((persona.estado || 'Activo') !== 'Activo' && persona.fechaCaducidad) {
       const fechaCad = parseFechaLocal(persona.fechaCaducidad);
       if (!isNaN(fechaCad)) {
@@ -5312,20 +5180,1865 @@
   }
 
   // ==============================================================
-  // RENDERIZADO DEL TIMELINE Y DASHBOARD
+  // FUNCIONES DE RENDERIZADO
   // ==============================================================
-  // ... (resto del código igual que antes, con las funciones renderAll, renderProjects, etc.)
-  // Nota: Por razones de espacio, el resto del código se mantiene igual que en la versión anterior.
-  // Las funciones principales ya están corregidas.
-  
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    });
+  }
+
+  // ==============================================================
+  // DASHBOARD DE OCUPACIÓN DE PERSONAL
+  // ==============================================================
+  function getIniciales(nombre) {
+    if (!nombre) return '?';
+    const partes = nombre.trim().split(/\s+/);
+    if (partes.length === 1) return partes[0].substring(0, 2).toUpperCase();
+    return (partes[0].charAt(0) + partes[partes.length - 1].charAt(0)).toUpperCase();
+  }
+
+  function calcularOcupacionPersonal() {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    let total = 0;
+    let ocupados = 0;
+
+    personalStock.forEach(p => {
+      if ((p.estado || 'Activo') !== 'Activo') return;
+      const tipo = (p.tipo || '').trim();
+      if (tipo !== 'Campo' && tipo !== 'HSE') return;
+
+      total++;
+
+      const estaOcupado = proyectos.some(proyecto => {
+        if (!proyecto || !proyecto.fases) return false;
+        return proyecto.fases.some(fase => {
+          if (!fase || !fase.recursos) return false;
+          return fase.recursos.some(recurso => {
+            if (!recurso || recurso.nombre !== p.nombre) return false;
+            const estado = getEstadoRecursoEnFecha(p.nombre, fase.inicio, fase.fin);
+            if (!estado.contar) return false;
+            const ini = parseFechaLocal(recurso.inicio || fase.inicio);
+            const fin = parseFechaLocal(recurso.fin || fase.fin);
+            if (isNaN(ini) || isNaN(fin)) return false;
+            return hoy >= ini && hoy <= fin;
+          });
+        });
+      });
+
+      if (estaOcupado) ocupados++;
+    });
+
+    return { total, ocupados, libres: total - ocupados };
+  }
+
+  function renderStatsBar() {
+    const stats = calcularOcupacionPersonal();
+    const elTotal = document.getElementById('statTotal');
+    const elOcupados = document.getElementById('statOcupados');
+    const elLibres = document.getElementById('statLibres');
+
+    if (elTotal) elTotal.textContent = stats.total;
+    if (elOcupados) elOcupados.textContent = stats.ocupados;
+    if (elLibres) elLibres.textContent = stats.libres;
+  }
+
+  // ==============================================================
+  // DASHBOARD DE PROYECTOS ACTIVOS POR LÍDER
+  // ==============================================================
+  function calcularProyectosPorLider() {
+    const conteo = {};
+
+    proyectos.forEach(p => {
+      if (!p || (p.estado || 'Abierto') !== 'Abierto') return;
+      const lider = (p.lider || 'Sin líder').trim().toUpperCase();
+      if (!lider) return;
+      conteo[lider] = (conteo[lider] || 0) + 1;
+    });
+
+    return Object.entries(conteo)
+      .sort((a, b) => b[1] - a[1])
+      .map(([lider, count]) => ({ lider, count }));
+  }
+
+  function renderLideresBar() {
+    const container = document.getElementById('lideresBar');
+    if (!container) return;
+
+    const lideres = calcularProyectosPorLider();
+
+    if (lideres.length === 0) {
+      container.innerHTML = `
+        <div style="font-size:0.6rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.6px; padding-right:8px; border-right:1px solid #2d3a5e; margin-right:4px; display:flex; align-items:center;">
+          Proyectos<br>Activos por<br>Líder
+        </div>
+        <div style="color:#64748b; font-size:0.7rem; padding:8px;">Sin proyectos activos</div>
+      `;
+      return;
+    }
+
+    let html = `
+      <div style="font-size:0.6rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.6px; padding-right:8px; border-right:1px solid #2d3a5e; margin-right:4px; display:flex; align-items:center;">
+        Proyectos<br>Activos por<br>Líder
+      </div>
+    `;
+
+    lideres.forEach(({ lider, count }) => {
+      const iniciales = lider.length <= 3 ? lider : lider.substring(0, 2);
+      html += `
+        <div class="lider-card" title="${escapeHtml(lider)}: ${count} proyecto${count > 1 ? 's' : ''} activo${count > 1 ? 's' : ''}">
+          <div class="lider-avatar">${escapeHtml(iniciales)}</div>
+          <div class="lider-data">
+            <span class="lider-value">${count}</span>
+            <span class="lider-label">${escapeHtml(lider)}</span>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+  // ==============================================================
+  // RENDERIZADO DEL TIMELINE
+  // ==============================================================
+  let inicioGlobal, finGlobal;
+  const ANCHO_DIA = 50;
+  let DIAS_TOTALES = 0;
+
+  function obtenerFechasValidas() {
+    const fechas = [];
+    proyectos.forEach(p => {
+      p.fases.forEach(f => {
+        if (f.inicio && f.inicio.trim() !== '') {
+          const fechaInicio = parseFechaLocal(f.inicio);
+          if (!isNaN(fechaInicio)) fechas.push(fechaInicio);
+        }
+        if (f.fin && f.fin.trim() !== '') {
+          const fechaFin = parseFechaLocal(f.fin);
+          if (!isNaN(fechaFin)) fechas.push(fechaFin);
+        }
+      });
+    });
+    return fechas;
+  }
+
+  function calcularRangoGlobal() {
+    const fechasValidas = obtenerFechasValidas();
+    
+    if (fechasValidas.length === 0) {
+      inicioGlobal = new Date('2025-01-01');
+      finGlobal = new Date('2026-12-31');
+    } else {
+      inicioGlobal = new Date(Math.min(...fechasValidas));
+      finGlobal = new Date(Math.max(...fechasValidas));
+    }
+    
+    inicioGlobal.setDate(inicioGlobal.getDate() - 3);
+    finGlobal.setDate(finGlobal.getDate() + 3);
+    DIAS_TOTALES = Math.ceil((finGlobal - inicioGlobal) / 86400000);
+  }
+
+  function formatearFechaCabecera(baseDate, offset) {
+    let d = new Date(baseDate);
+    d.setDate(d.getDate() + offset);
+    const dia = String(d.getDate()).padStart(2, '0');
+    const mes = d.toLocaleString('es', { month: 'short' }).replace('.', '');
+    return `${dia}/${mes}`;
+  }
+
+  function renderFixedHeader() {
+    const daysRowFixed = document.getElementById("daysRowFixed");
+    if (!daysRowFixed) return;
+    daysRowFixed.innerHTML = "";
+    
+    for (let i = 0; i <= DIAS_TOTALES; i++) {
+      const dayDiv = document.createElement("div");
+      let d = new Date(inicioGlobal);
+      d.setDate(d.getDate() + i);
+      const esFinde = d.getDay() === 0 || d.getDay() === 6;
+      dayDiv.className = "day-cell-fixed" + (esFinde ? " weekend" : "");
+      dayDiv.innerText = formatearFechaCabecera(inicioGlobal, i);
+      daysRowFixed.appendChild(dayDiv);
+    }
+    
+    const timelineInner = document.getElementById("timelineInner");
+    if (timelineInner) {
+      timelineInner.style.minWidth = `${280 + (DIAS_TOTALES + 1) * ANCHO_DIA}px`;
+    }
+  }
+
+  function renderProjects() {
+    const rowsContainer = document.getElementById("rowsContainer");
+    if (!rowsContainer) return;
+    rowsContainer.innerHTML = "";
+    const canEdit = userCanEdit();
+
+    proyectos.forEach((proyecto, proyectoIndex) => {
+      if (!proyectoCumpleFiltros(proyecto)) return;
+      
+      const rowDiv = document.createElement("div");
+      rowDiv.className = "project-row";
+
+      const wrapperDiv = document.createElement("div");
+      wrapperDiv.className = "project-info-wrapper";
+
+      const infoDiv = document.createElement("div");
+      infoDiv.className = "project-info";
+      
+      const estadoProyecto = proyecto.estado || 'Abierto';
+      let estadoBadge = '';
+      if (estadoProyecto === 'Cerrado') {
+        estadoBadge = `<span class="badge-estado cerrado">Cerrado</span>`;
+      } else if (estadoProyecto === 'Stand by') {
+        estadoBadge = `<span class="badge-estado standby">Stand by</span>`;
+      } else {
+        estadoBadge = `<span class="badge-estado abierto">Abierto</span>`;
+      }
+      const liderBadge = proyecto.lider
+        ? `<span class="badge-lider" title="Líder de proyecto">${escapeHtml(proyecto.lider)}</span>`
+        : '';
+      
+      infoDiv.innerHTML = `
+        <div class="project-name" style="cursor:pointer;" title="Click para ver detalles">${escapeHtml(proyecto.id)} — ${escapeHtml(proyecto.nombre)}</div>
+        <div class="project-client-row" style="margin-top:2px;">
+          <span class="project-client">${escapeHtml(proyecto.cliente)}</span>
+          ${liderBadge}
+          ${estadoBadge}
+        </div>
+      `;
+      infoDiv.querySelector('.project-name').addEventListener('click', function(e) {
+        e.stopPropagation();
+        openTarjetaProyecto(proyectoIndex);
+      });
+      
+      wrapperDiv.appendChild(infoDiv);
+
+      const actionsDiv = document.createElement("div");
+      actionsDiv.className = `project-actions ${canEdit ? '' : 'disabled'}`;
+      actionsDiv.innerHTML = `
+        <button class="edit-project-btn" onclick="openEditProjectModal(${proyectoIndex})" title="Editar proyecto">✎</button>
+        <button class="delete-project-btn" onclick="deleteProject(${proyectoIndex})" title="Eliminar proyecto">✕</button>
+      `;
+      wrapperDiv.appendChild(actionsDiv);
+      rowDiv.appendChild(wrapperDiv);
+
+      const cellsTrack = document.createElement("div");
+      cellsTrack.className = "cells-track";
+      for (let i = 0; i <= DIAS_TOTALES; i++) {
+        const cell = document.createElement("div");
+        cell.className = "track-cell";
+        cellsTrack.appendChild(cell);
+      }
+      rowDiv.appendChild(cellsTrack);
+      rowsContainer.appendChild(rowDiv);
+
+      const celdasArray = Array.from(cellsTrack.querySelectorAll(".track-cell"));
+
+      proyecto.fases.forEach((fase, faseIndex) => {
+        if (!fase.inicio || fase.inicio.trim() === '' || !fase.fin || fase.fin.trim() === '') return;
+        const fechaInicio = parseFechaLocal(fase.inicio);
+        const fechaFin = parseFechaLocal(fase.fin);
+        
+        if (isNaN(fechaInicio) || isNaN(fechaFin)) return;
+        
+        const diffInicio = (fechaInicio - inicioGlobal) / 86400000;
+        const diffFin = (fechaFin - inicioGlobal) / 86400000;
+        
+        let startCellIndex = Math.round(diffInicio);
+        let endCellIndex = Math.round(diffFin);
+        
+        if (startCellIndex < 0) startCellIndex = 0;
+        if (endCellIndex > DIAS_TOTALES) endCellIndex = DIAS_TOTALES;
+        if (startCellIndex > DIAS_TOTALES || endCellIndex < 0) return;
+        
+        const startPos = diffInicio * ANCHO_DIA;
+        const endPos = (diffFin + 1) * ANCHO_DIA;
+        const totalWidth = endPos - startPos;
+        const anchoBloque = Math.max(10, totalWidth - 3);
+        const cellStartPos = startCellIndex * ANCHO_DIA;
+        const leftPos = startPos - cellStartPos;
+        
+        const avance = fase.avance || 0;
+
+        const bloque = document.createElement("div");
+        bloque.className = `phase-block ${canEdit ? '' : 'disabled'}`;
+        bloque.style.background = `linear-gradient(90deg, ${fase.color} 0%, ${fase.color} ${avance}%, rgba(55, 65, 81, 0.8) ${avance}%, rgba(30, 35, 50, 0.85) 100%)`;
+        bloque.style.width = `${anchoBloque}px`;
+        bloque.style.left = `${leftPos}px`;
+
+        bloque.dataset.proyectoIndex = proyectoIndex;
+        bloque.dataset.faseIndex = faseIndex;
+
+        bloque.addEventListener('mouseenter', function(e) {
+          const pIndex = parseInt(this.dataset.proyectoIndex);
+          const fIndex = parseInt(this.dataset.faseIndex);
+          const proy = proyectos[pIndex];
+          const faseData = proy.fases[fIndex];
+          showResourcesTooltip(e, proy, faseData);
+        });
+
+        bloque.addEventListener('mousemove', function(e) {
+          if (tooltip.classList.contains('show')) {
+            posicionarTooltip(e);
+          }
+        });
+
+        bloque.addEventListener('mouseleave', function(e) {
+          programarOcultarTooltip();
+        });
+
+        bloque.addEventListener('click', function(e) {
+          e.stopPropagation();
+          hideResourcesTooltip();
+          const pIndex = parseInt(this.dataset.proyectoIndex);
+          const fIndex = parseInt(this.dataset.faseIndex);
+          const proy = proyectos[pIndex];
+          const faseData = proy.fases[fIndex];
+          openResourcesPanel(proy, faseData, fIndex);
+        });
+
+        const recursosActivosFase = (fase.recursos || []).filter(r => {
+          const est = getEstadoRecursoEnFecha(r.nombre, fase.inicio, fase.fin);
+          return est.contar;
+        });
+        const hasResources = recursosActivosFase.length > 0;
+        const totalRecursos = (fase.recursos || []).length;
+        const badgeRecursos = hasResources 
+          ? (totalRecursos > recursosActivosFase.length 
+            ? `<div class="phase-resource-count">👥 ${recursosActivosFase.length}<span style="opacity:0.6; font-size:0.35rem;">/${totalRecursos}</span></div>`
+            : `<div class="phase-resource-count">👥 ${recursosActivosFase.length}</div>`)
+          : '';
+
+        bloque.innerHTML = `
+          <div class="phase-name">${escapeHtml(fase.nombre)}</div>
+          <div class="phase-stats">
+            <span>${avance}%</span>
+            <span>${formatearFechaDDMM(fase.inicio)}</span>
+          </div>
+          ${badgeRecursos}
+        `;
+
+        if (startCellIndex >= 0 && startCellIndex < celdasArray.length) {
+          const celda = celdasArray[startCellIndex];
+          if (celda) {
+            celda.style.position = "relative";
+            celda.appendChild(bloque);
+          }
+        }
+      });
+    });
+
+    if (rowsContainer.children.length === 0) {
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'project-row';
+      emptyDiv.innerHTML = `
+        <div class="project-info-wrapper" style="width:100%; justify-content:center;">
+          <div style="color:#64748b; font-size:0.75rem; padding:16px; text-align:center;">
+            🔍 No se encontraron proyectos con los filtros aplicados
+          </div>
+        </div>
+      `;
+      rowsContainer.appendChild(emptyDiv);
+    }
+  }
+
+  function renderTodayLine() {
+    const oldLine = document.querySelector(".today-line");
+    if (oldLine) oldLine.remove();
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const inicioMidnight = new Date(inicioGlobal);
+    inicioMidnight.setHours(0, 0, 0, 0);
+    let offsetDias = (hoy - inicioMidnight) / 86400000;
+
+    if (offsetDias < 0 || offsetDias > DIAS_TOTALES) return;
+
+    const leftPos = 280 + (offsetDias * ANCHO_DIA) + (ANCHO_DIA / 2) - 1;
+    const line = document.createElement("div");
+    line.className = "today-line";
+    const fechaStr = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
+    line.setAttribute("data-label", `HOY ${fechaStr}`);
+    line.style.left = `${leftPos}px`;
+    const ganttWrap = document.getElementById("ganttWrapper");
+    if (ganttWrap) {
+      ganttWrap.style.position = "relative";
+      ganttWrap.appendChild(line);
+    }
+  }
+
+  function renderAll() {
+    calcularRangoGlobal();
+    renderFixedHeader();
+    renderProjects();
+    renderTodayLine();
+    renderStatsBar();
+    renderLideresBar();
+  }
+
+  // ==============================================================
+  // TOOLTIP DE RECURSOS
+  // ==============================================================
+  const tooltip = document.getElementById('resourcesTooltip');
+  let tooltipHideTimeout = null;
+
+  function showResourcesTooltip(e, proyecto, fase) {
+    if (tooltipHideTimeout) {
+      clearTimeout(tooltipHideTimeout);
+      tooltipHideTimeout = null;
+    }
+    
+    const recursos = fase.recursos || [];
+    const content = document.getElementById('tooltipContent');
+    
+    const recursosFiltrados = recursos.map(r => ({
+      ...r,
+      _estado: getEstadoRecursoEnFecha(r.nombre, fase.inicio, fase.fin)
+    }));
+    const recursosActivos = recursosFiltrados.filter(r => r._estado.contar);
+
+    document.getElementById('tooltipTitle').textContent = fase.nombre;
+    document.getElementById('tooltipBadge').textContent = recursosActivos.length + (recursosFiltrados.length > recursosActivos.length ? `+${recursosFiltrados.length - recursosActivos.length}` : '');
+    document.getElementById('tooltipBadge').title = recursosActivos.length + ' activos' + (recursosFiltrados.length > recursosActivos.length ? `, ${recursosFiltrados.length - recursosActivos.length} no activos` : '');
+    
+    let html = '';
+    
+    if (fase.nombre === 'Facturación' && fase.monto !== null && fase.monto !== undefined && !isNaN(fase.monto)) {
+      const avance = parseInt(fase.avance) || 0;
+      const montoTotal = parseFloat(fase.monto);
+      const montoParcial = (montoTotal * avance / 100);
+      const montoFormateado = montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const parcialFormateado = montoParcial.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      html += `
+        <div style="background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.35); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;">
+          <div style="font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; margin-bottom: 3px;">Facturación</div>
+          <div style="font-size: 0.85rem; font-weight: 700; color: #4ade80;">$ ${parcialFormateado} USD</div>
+          <div style="font-size: 0.55rem; color: #64748b; margin-top: 2px;">Monto total: $ ${montoFormateado} · Avance: ${avance}%</div>
+        </div>
+      `;
+    }
+
+    if (fase.comentario && fase.comentario.trim()) {
+      html += `<div class="tooltip-comentario">💬 ${escapeHtml(fase.comentario)}</div>`;
+    }
+    
+    if (recursos.length === 0 && (!fase.equiposFase || fase.equiposFase.length === 0)) {
+      if (fase.nombre !== 'Facturación') {
+        html += `<div class="tooltip-empty">No hay recursos asignados</div>`;
+      }
+    } else {
+      recursos.forEach((res) => {
+        const inicial = res.nombre ? res.nombre.charAt(0).toUpperCase() : '?';
+        
+        const equiposHtml = (res.equipos || []).map(eq => {
+          const disponibilidad = getEquipoDisponibilidad(eq, fase.inicio, fase.fin, proyecto.id);
+          let clase = '';
+          let tooltipTitle = '';
+          
+          if (disponibilidad.disponible) {
+            clase = 'disponible';
+          } else {
+            clase = 'ocupado';
+            tooltipTitle = ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"`;
+          }
+          
+          const equipoStock = equiposStock.find(e => e.nombre === eq);
+          if (equipoStock && equipoStock.calibracion) {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const fechaCal = parseFechaLocal(equipoStock.calibracion);
+            if (!isNaN(fechaCal) && fechaCal < hoy) {
+              clase = 'caducado';
+              tooltipTitle = ' title="⚠️ Calibración vencida"';
+            }
+          }
+          
+          return `<span class="res-equipo-tag ${clase}"${tooltipTitle}>${escapeHtml(eq)}</span>`;
+        }).join('');
+        
+        const fechasTooltip = (res.inicio && res.fin)
+          ? `📅 ${formatearFechaDDMM(res.inicio)}→${formatearFechaDDMM(res.fin)} · `
+          : '';
+
+        const estado = getEstadoRecursoEnFecha(res.nombre, fase.inicio, fase.fin);
+        const estadoText = estado.texto ? ` ${estado.texto}` : '';
+        const opacityStyle = estado.contar ? '' : 'opacity:0.5;';
+
+        html += `
+          <div class="tooltip-resource" style="${opacityStyle}">
+            <div class="res-avatar">${inicial}</div>
+            <div class="res-info">
+              <div class="res-name">${escapeHtml(res.nombre)}<span style="font-size:0.5rem; color:${estado.estado === 'Caducado' ? '#f87171' : '#fb923c'}; margin-left:4px;">${estadoText}</span></div>
+              <div class="res-equipos">${equiposHtml}</div>
+              <div class="res-tecnica">${fechasTooltip}${escapeHtml(res.tecnica || 'Técnica no especificada')} · ${res.horas || 0}h</div>
+            </div>
+          </div>
+        `;
+      });
+      
+      // Equipos de fase
+      if (fase.equiposFase && fase.equiposFase.length > 0) {
+        html += `<div class="tooltip-resource" style="border-top:1px solid rgba(45,58,94,0.3); padding-top:6px; margin-top:4px;">`;
+        html += `<div style="font-size:0.5rem; color:#64748b; margin-bottom:4px;">📦 Equipos asignados a la fase:</div>`;
+        fase.equiposFase.forEach(eq => {
+          const disponibilidad = getEquipoDisponibilidad(eq.nombre, fase.inicio, fase.fin, proyecto.id);
+          let clase = disponibilidad.disponible ? 'disponible' : 'ocupado';
+          let tooltipTitle = disponibilidad.disponible ? '' : ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"`;
+          
+          const equipoStock = equiposStock.find(e => e.nombre === eq.nombre);
+          if (equipoStock && equipoStock.calibracion) {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const fechaCal = parseFechaLocal(equipoStock.calibracion);
+            if (!isNaN(fechaCal) && fechaCal < hoy) {
+              clase = 'caducado';
+              tooltipTitle = ' title="⚠️ Calibración vencida"';
+            }
+          }
+          
+          const fechasEq = (eq.inicio && eq.fin) 
+            ? `📅 ${formatearFechaDDMM(eq.inicio)}→${formatearFechaDDMM(eq.fin)}`
+            : `📅 ${formatearFechaDDMM(fase.inicio)}→${formatearFechaDDMM(fase.fin)}`;
+          
+          html += `
+            <div style="display:flex; align-items:center; gap:6px; padding:2px 0; font-size:0.55rem; color:#e2e8f0;">
+              <span class="res-equipo-tag ${clase}"${tooltipTitle}>${escapeHtml(eq.nombre)}</span>
+              <span style="color:#64748b; font-size:0.5rem;">${fechasEq}</span>
+            </div>
+          `;
+        });
+        html += `</div>`;
+      }
+    }
+    content.innerHTML = html;
+    
+    posicionarTooltip(e);
+    tooltip.classList.add('show');
+  }
+
+  function posicionarTooltip(e) {
+    const cursorX = e.clientX;
+    const cursorY = e.clientY;
+    
+    let left = cursorX + 18;
+    let top = cursorY + 18;
+    
+    const tooltipWidth = 360;
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const tooltipHeight = tooltipRect.height || 280;
+    
+    if (left + tooltipWidth > window.innerWidth - 10) {
+      left = cursorX - tooltipWidth - 18;
+      if (left < 10) left = 10;
+    }
+    
+    if (top + tooltipHeight > window.innerHeight - 10) {
+      top = window.innerHeight - tooltipHeight - 10;
+      if (top < 10) top = 10;
+    }
+    
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+  }
+
+  function hideResourcesTooltip() {
+    tooltip.classList.remove('show');
+  }
+
+  function programarOcultarTooltip() {
+    if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+    tooltipHideTimeout = setTimeout(() => {
+      hideResourcesTooltip();
+    }, 200);
+  }
+
+  tooltip.addEventListener('mouseenter', function() {
+    if (tooltipHideTimeout) {
+      clearTimeout(tooltipHideTimeout);
+      tooltipHideTimeout = null;
+    }
+  });
+
+  tooltip.addEventListener('mouseleave', function() {
+    programarOcultarTooltip();
+  });
+
+  // ==============================================================
+  // PANEL DE RECURSOS
+  // ==============================================================
+  function openResourcesPanel(proyecto, fase, faseIndex) {
+    if (cambiosRecursosPendientes && currentFase && currentFase.id !== fase.id) {
+      cambiosRecursosPendientes = false;
+      syncWithSheets(true);
+    }
+
+    limpiarCacheEquipos();
+    limpiarCachePersonas();
+
+    currentProject = proyecto;
+    currentFase = fase;
+    currentFaseIndex = faseIndex;
+
+    document.getElementById('panelTitle').textContent = `Recursos: ${fase.nombre}`;
+    document.getElementById('panelSubtitle').textContent = `${proyecto.nombre} | ${proyecto.cliente}`;
+
+    renderPanelComentario();
+    renderResources();
+
+    document.getElementById('resourcesPanel').classList.add('open');
+    document.getElementById('panelOverlay').classList.add('active');
+  }
+
+  function closeResourcesPanel() {
+    document.getElementById('resourcesPanel').classList.remove('open');
+    document.getElementById('panelOverlay').classList.remove('active');
+    editingResourceId = null;
+    equiposSeleccionados = [];
+    
+    if (cambiosRecursosPendientes) {
+      cambiosRecursosPendientes = false;
+      syncWithSheets(true);
+    }
+  }
+
+  function renderPanelComentario() {
+    const container = document.getElementById('panelComentarioSection');
+    const canEdit = userCanEdit();
+    const comentarioActual = currentFase.comentario || '';
+    
+    if (canEdit) {
+      container.innerHTML = `
+        <div style="background:rgba(255,255,255,0.03); border:1px solid #2d3a5e; border-radius:10px; padding:10px 12px;">
+          <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase; display:block; margin-bottom:6px;">💬 Comentario de la fase</label>
+          <textarea id="faseComentarioInput" maxlength="500" rows="3" placeholder="Comentario corto (máx. 500 caracteres)..." style="width:100%; resize:vertical; background:#0f172a; border:1px solid #2d3a5e; border-radius:6px; color:#e2e8f0; padding:8px; font-family:inherit; font-size:0.75rem; box-sizing:border-box;">${escapeHtml(comentarioActual)}</textarea>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+            <span id="faseComentarioContador" style="font-size:0.6rem; color:#64748b;">${comentarioActual.length}/500</span>
+            <button class="save-btn" style="padding:5px 14px; font-size:0.65rem;" onclick="guardarComentarioFase()">Guardar comentario</button>
+          </div>
+        </div>
+      `;
+      const textarea = document.getElementById('faseComentarioInput');
+      textarea.addEventListener('input', () => {
+        document.getElementById('faseComentarioContador').textContent = `${textarea.value.length}/500`;
+      });
+    } else if (comentarioActual) {
+      container.innerHTML = `
+        <div style="background:rgba(255,255,255,0.03); border:1px solid #2d3a5e; border-radius:10px; padding:10px 12px;">
+          <label style="color:#94a3b8; font-size:0.65rem; font-weight:600; text-transform:uppercase; display:block; margin-bottom:4px;">💬 Comentario</label>
+          <div style="font-size:0.75rem; color:#cbd5e1; white-space:pre-wrap; word-break:break-word;">${escapeHtml(comentarioActual)}</div>
+        </div>
+      `;
+    } else {
+      container.innerHTML = '';
+    }
+  }
+
+  function guardarComentarioFase() {
+    if (!userCanEdit()) return;
+    const textarea = document.getElementById('faseComentarioInput');
+    const valor = textarea.value.slice(0, 500);
+    currentFase.comentario = valor;
+    saveToLocalStorage();
+    cambiosRecursosPendientes = true;
+    marcarDirty('fases');
+    const contador = document.getElementById('faseComentarioContador');
+    if (contador) contador.textContent = `${valor.length}/500 ✓ guardado`;
+  }
+
+  function renderResources() {
+    const container = document.getElementById('panelContent');
+    const recursos = currentFase.recursos || [];
+    const canEdit = userCanEdit();
+
+    const recursosConEstado = recursos.map((r, idx) => ({
+      ...r,
+      _index: idx,
+      _estado: getEstadoRecursoEnFecha(r.nombre, currentFase.inicio, currentFase.fin)
+    }));
+    const recursosActivos = recursosConEstado.filter(r => r._estado.contar);
+
+    let html = '';
+
+    if (recursos.length > 0 || (currentFase.equiposFase && currentFase.equiposFase.length > 0)) {
+      const totalEquiposFase = currentFase.equiposFase ? currentFase.equiposFase.length : 0;
+      html += `<div style="font-size:0.6rem; color:#64748b; margin-bottom:8px; padding:4px 8px; background:rgba(255,255,255,0.02); border-radius:6px; border:1px solid rgba(45,58,94,0.3);">
+        Recursos: <strong style="color:#e2e8f0;">${recursosActivos.length}</strong> activos${recursos.length > recursosActivos.length ? ` · <span style="color:#f87171;">${recursos.length - recursosActivos.length} no activo${recursos.length - recursosActivos.length > 1 ? 's' : ''}</span>` : ''}
+        ${totalEquiposFase > 0 ? ` · 📦 ${totalEquiposFase} equipo${totalEquiposFase > 1 ? 's' : ''} en fase` : ''}
+      </div>`;
+    }
+
+    if (recursos.length === 0 && (!currentFase.equiposFase || currentFase.equiposFase.length === 0)) {
+      html += `
+        <div class="empty-state">
+          <p>No hay recursos asignados</p>
+          <p style="font-size:0.6rem; margin-top:3px;">${canEdit ? 'Agrega personal, equipos y técnicas' : 'Solo lectura'}</p>
+        </div>
+      `;
+    } else {
+      html += `<div class="resources-section">`;
+
+      recursosConEstado.forEach((recurso) => {
+        const estado = recurso._estado;
+        const equiposHtml = (recurso.equipos || []).map(eq => {
+          const disponibilidad = getEquipoDisponibilidad(eq, currentFase.inicio, currentFase.fin, currentProject.id);
+          let clase = '';
+          let tooltip = '';
+          
+          if (disponibilidad.disponible) {
+            clase = 'disponible';
+            tooltip = ' title="Equipo disponible"';
+          } else {
+            clase = 'ocupado';
+            tooltip = ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"`;
+          }
+          
+          const equipoStock = equiposStock.find(e => e.nombre === eq);
+          if (equipoStock && equipoStock.calibracion) {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const fechaCal = parseFechaLocal(equipoStock.calibracion);
+            if (!isNaN(fechaCal) && fechaCal < hoy) {
+              clase = 'caducado';
+              tooltip = ' title="⚠️ Calibración vencida"';
+            }
+          }
+          
+          return `<span class="resource-equipo-tag ${clase}"${tooltip}>${escapeHtml(eq)}</span>`;
+        }).join('');
+
+        const fechasRecurso = (recurso.inicio && recurso.fin)
+          ? `<span style="color:#4ade80;">${formatearFechaDDMM(recurso.inicio)} → ${formatearFechaDDMM(recurso.fin)}</span> · `
+          : '';
+
+        const estadoBadge = estado.texto 
+          ? `<span style="font-size:0.5rem; padding:1px 5px; border-radius:8px; margin-left:6px; font-weight:600; ${estado.estado === 'Caducado' ? 'background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3);' : 'background:rgba(251,146,60,0.15); color:#fb923c; border:1px solid rgba(251,146,60,0.3);'}">${estado.texto}</span>` 
+          : '';
+        const opacityStyle = estado.contar ? '' : 'opacity:0.5;';
+
+        html += `
+          <div class="resource-item" style="${opacityStyle}">
+            <div class="resource-info">
+              <div class="resource-name">${escapeHtml(recurso.nombre)}${estadoBadge}</div>
+              <div class="resource-detail">
+                ${fechasRecurso}${escapeHtml(recurso.certificacion || 'Sin cert')} · 
+                ${escapeHtml(recurso.tecnica || 'Técnica no especificada')} · 
+                ${recurso.horas || 0}h
+              </div>
+              <div class="resource-equipos">${equiposHtml}</div>
+            </div>
+            <div class="resource-actions ${canEdit ? '' : 'disabled'}">
+              <button onclick="editResource(${recurso._index})" title="Editar">✎</button>
+              <button class="delete-btn" onclick="deleteResource(${recurso._index})" title="Eliminar">✕</button>
+            </div>
+          </div>
+        `;
+      });
+      
+      // Equipos de fase
+      if (currentFase.equiposFase && currentFase.equiposFase.length > 0) {
+        html += `<div class="fase-equipos-section">`;
+        html += `<div class="section-title">📦 Equipos asignados a esta fase</div>`;
+        currentFase.equiposFase.forEach((eq, idx) => {
+          const disponibilidad = getEquipoDisponibilidad(eq.nombre, currentFase.inicio, currentFase.fin, currentProject.id);
+          let clase = disponibilidad.disponible ? 'disponible' : 'ocupado';
+          let tooltip = disponibilidad.disponible ? ' title="Equipo disponible"' : ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"`;
+          
+          const equipoStock = equiposStock.find(e => e.nombre === eq.nombre);
+          if (equipoStock && equipoStock.calibracion) {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const fechaCal = parseFechaLocal(equipoStock.calibracion);
+            if (!isNaN(fechaCal) && fechaCal < hoy) {
+              clase = 'caducado';
+              tooltip = ' title="⚠️ Calibración vencida"';
+            }
+          }
+          
+          const fechasEq = (eq.inicio && eq.fin) 
+            ? `📅 ${formatearFechaDDMM(eq.inicio)} → ${formatearFechaDDMM(eq.fin)}`
+            : `📅 ${formatearFechaDDMM(currentFase.inicio)} → ${formatearFechaDDMM(currentFase.fin)}`;
+          
+          html += `
+            <div class="equipo-fase-item">
+              <span class="eq-name">${escapeHtml(eq.nombre)}</span>
+              <span class="eq-fechas">${fechasEq}</span>
+              <span class="equipo-tag ${clase}"${tooltip} style="font-size:0.45rem; padding:1px 6px;">${disponibilidad.disponible ? '🟢 Libre' : '🔴 Ocupado'}</span>
+              ${canEdit ? `<button class="remove-btn" onclick="removerEquipoFase(${idx})">✕</button>` : ''}
+            </div>
+          `;
+        });
+        html += `</div>`;
+      }
+
+      html += `</div>`;
+    }
+
+    html += `
+      <button class="add-resource-btn ${canEdit ? '' : 'disabled'}" onclick="showAddResourceForm()">
+        + Agregar Recurso
+      </button>
+    `;
+    
+    html += `
+      <div class="edit-form" id="resourceForm">
+        <div style="margin-top:4px;">
+          <label style="color:#94a3b8; font-size:0.6rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Persona</label>
+          <div class="form-row">
+            <select id="resNombre" onchange="verificarPersonaSeleccionada()">
+              ${getPersonalSelectOptionsConDisponibilidad('', currentFase.inicio, currentFase.fin, currentFase.id, currentProject.id)}
+            </select>
+          </div>
+          <div id="personaDisponibilidadMsg" style="margin-top:4px;"></div>
+        </div>
+        <div class="form-row" style="margin-top:6px;">
+          <div style="flex:1;">
+            <label style="color:#94a3b8; font-size:0.55rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Fecha inicio (opcional)</label>
+            <input type="date" id="resInicio" style="width:100%; margin-bottom:0;" />
+          </div>
+          <div style="flex:1;">
+            <label style="color:#94a3b8; font-size:0.55rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Fecha fin (opcional)</label>
+            <input type="date" id="resFin" style="width:100%; margin-bottom:0;" />
+          </div>
+        </div>
+        <div style="font-size:0.55rem; color:#64748b; margin-top:2px; margin-bottom:4px;">
+          ℹ️ Si dejas vacío, se asume toda la fase (${currentFase.inicio} → ${currentFase.fin})
+        </div>
+        <div class="form-row">
+          <input type="text" id="resCertificacion" placeholder="Certificación" />
+          <input type="text" id="resTecnica" placeholder="Técnica" />
+        </div>
+        <div class="form-row">
+          <input type="number" id="resHoras" placeholder="Horas" />
+        </div>
+        <div style="margin-top:4px;">
+          <label style="color:#94a3b8; font-size:0.6rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Equipos</label>
+          <div class="form-row">
+            <select id="resEquipoSelect" onchange="verificarEquipoSeleccionado()">
+              <option value="">Seleccionar equipo...</option>
+              ${getEquiposSelectOptionsConDisponibilidad('', currentFase.inicio, currentFase.fin, currentProject.id)}
+            </select>
+            <button class="btn-add-equipo" onclick="agregarEquipoSeleccionado()">+ Agregar</button>
+          </div>
+          <div id="equipoDisponibilidadMsg" style="margin-top:4px;"></div>
+          <div id="equiposSeleccionadosContainer" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;"></div>
+        </div>
+        <div style="margin-top:8px; border-top:1px solid #2d3a5e; padding-top:8px;">
+          <label style="color:#94a3b8; font-size:0.6rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">📦 Asignar equipo a la fase</label>
+          <div class="form-row">
+            <select id="resEquipoFaseSelect">
+              <option value="">Seleccionar equipo...</option>
+              ${equiposStock.map(e => `<option value="${escapeHtml(e.nombre)}">${escapeHtml(e.nombre)}</option>`).join('')}
+            </select>
+            <button class="btn-add-equipo" onclick="agregarEquipoFase()">+ Asignar</button>
+          </div>
+          <div style="display:flex; gap:6px; margin-top:4px;">
+            <input type="date" id="resEquipoFaseInicio" placeholder="Inicio" style="flex:1;" />
+            <input type="date" id="resEquipoFaseFin" placeholder="Fin" style="flex:1;" />
+          </div>
+          <div style="font-size:0.5rem; color:#64748b; margin-top:2px;">Si dejas vacío, se asume toda la fase</div>
+        </div>
+        <div class="form-actions">
+          <button class="save-btn" onclick="saveResource()">Guardar</button>
+          <button class="cancel-btn" onclick="hideResourceForm()">Cancelar</button>
+        </div>
+      </div>
+    `;
+    
+    container.innerHTML = html;
+    renderEquiposSeleccionados();
+  }
+
+  function renderEquiposSeleccionados() {
+    const container = document.getElementById('equiposSeleccionadosContainer');
+    if (!container) return;
+    
+    if (equiposSeleccionados.length === 0) {
+      container.innerHTML = '<span style="color:#64748b; font-size:0.6rem;">No hay equipos seleccionados</span>';
+      return;
+    }
+    
+    let html = '';
+    equiposSeleccionados.forEach((eq, index) => {
+      const disponibilidad = getEquipoDisponibilidad(eq, currentFase.inicio, currentFase.fin, currentProject.id);
+      let clase = disponibilidad.disponible ? 'disponible' : 'ocupado';
+      let tooltip = disponibilidad.disponible ? ' title="Equipo disponible"' : ` title="Ocupado en ${disponibilidad.conflicto.proyecto} - ${disponibilidad.conflicto.fase}"`;
+      
+      const equipoStock = equiposStock.find(e => e.nombre === eq);
+      if (equipoStock && equipoStock.calibracion) {
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const fechaCal = parseFechaLocal(equipoStock.calibracion);
+        if (!isNaN(fechaCal) && fechaCal < hoy) {
+          clase = 'caducado';
+          tooltip = ' title="⚠️ Calibración vencida"';
+        }
+      }
+      
+      html += `
+        <span class="equipo-tag ${clase}"${tooltip}>
+          ${escapeHtml(eq)}
+          <button class="remove-equipo" onclick="removerEquipoSeleccionado(${index})">✕</button>
+        </span>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  function agregarEquipoFase() {
+    const select = document.getElementById('resEquipoFaseSelect');
+    const equipo = select.value;
+    const inicio = document.getElementById('resEquipoFaseInicio').value || '';
+    const fin = document.getElementById('resEquipoFaseFin').value || '';
+    
+    if (!equipo) {
+      alert('Selecciona un equipo de la lista');
+      return;
+    }
+    
+    if (!currentFase.equiposFase) {
+      currentFase.equiposFase = [];
+    }
+    
+    if (currentFase.equiposFase.some(e => e.nombre === equipo)) {
+      alert('Este equipo ya está asignado a la fase');
+      return;
+    }
+    
+    // Validar disponibilidad del equipo
+    const eqInicio = inicio || currentFase.inicio;
+    const eqFin = fin || currentFase.fin;
+    const disponibilidad = getEquipoDisponibilidad(equipo, eqInicio, eqFin, currentProject.id);
+    if (!disponibilidad.disponible) {
+      const conflicto = disponibilidad.conflicto;
+      const inicioC = formatearFechaDDMM(conflicto.inicio);
+      const finC = formatearFechaDDMM(conflicto.fin);
+      if (!confirm(
+        `⚠️ El equipo "${equipo}" está ocupado:\n` +
+        `Proyecto: ${conflicto.proyecto}\n` +
+        `Fase: ${conflicto.fase}\n` +
+        `Período: ${inicioC} → ${finC}\n\n` +
+        `¿Deseas asignarlo de todos modos?`
+      )) {
+        return;
+      }
+    }
+    
+    currentFase.equiposFase.push({ nombre: equipo, inicio: inicio || '', fin: fin || '' });
+    marcarDirty('asignaciones');
+    cambiosRecursosPendientes = true;
+    
+    select.value = '';
+    document.getElementById('resEquipoFaseInicio').value = '';
+    document.getElementById('resEquipoFaseFin').value = '';
+    
+    renderResources();
+    saveToLocalStorage();
+  }
+
+  function removerEquipoFase(index) {
+    if (!confirm('¿Quitar este equipo de la fase?')) return;
+    currentFase.equiposFase.splice(index, 1);
+    marcarDirty('asignaciones');
+    cambiosRecursosPendientes = true;
+    renderResources();
+    saveToLocalStorage();
+  }
+
+  function verificarEquipoSeleccionado() {
+    if (timeoutVerificacionEquipo) {
+      clearTimeout(timeoutVerificacionEquipo);
+    }
+    
+    timeoutVerificacionEquipo = setTimeout(() => {
+      const select = document.getElementById('resEquipoSelect');
+      const equipo = select ? select.value : '';
+      const msgContainer = document.getElementById('equipoDisponibilidadMsg');
+      
+      if (!equipo) {
+        if (msgContainer) msgContainer.innerHTML = '';
+        return;
+      }
+      
+      const disponibilidad = getEquipoDisponibilidad(equipo, currentFase.inicio, currentFase.fin, currentProject.id);
+      
+      if (!msgContainer) return;
+      
+      if (disponibilidad.disponible) {
+        msgContainer.innerHTML = `<div class="equipo-status disponible"><span class="status-dot"></span> Equipo disponible</div>`;
+      } else {
+        const conflicto = disponibilidad.conflicto;
+        const inicio = formatearFechaDDMM(conflicto.inicio);
+        const fin = formatearFechaDDMM(conflicto.fin);
+        if (conflicto.bloqueo) {
+          msgContainer.innerHTML = `
+            <div class="equipo-ocupado-msg">
+              🔧 Este equipo está en <strong>${escapeHtml(conflicto.motivo)}</strong><br>
+              Período: ${inicio} → ${fin}
+            </div>
+          `;
+        } else {
+          msgContainer.innerHTML = `
+            <div class="equipo-ocupado-msg">
+              ⚠️ Este equipo está ocupado en:<br>
+              <strong>${conflicto.proyecto}</strong> (${conflicto.proyectoId})<br>
+              Fase: <strong>${conflicto.fase}</strong><br>
+              Recurso: ${conflicto.recurso}<br>
+              Período: ${inicio} → ${fin}
+            </div>
+          `;
+        }
+      }
+    }, 300);
+  }
+
+  function verificarPersonaSeleccionada() {
+    if (timeoutVerificacionPersona) {
+      clearTimeout(timeoutVerificacionPersona);
+    }
+    
+    timeoutVerificacionPersona = setTimeout(() => {
+      const select = document.getElementById('resNombre');
+      const persona = select ? select.value : '';
+      const msgContainer = document.getElementById('personaDisponibilidadMsg');
+      
+      if (!persona) {
+        if (msgContainer) msgContainer.innerHTML = '';
+        return;
+      }
+      
+      const disponibilidad = getPersonaDisponibilidad(persona, currentFase.inicio, currentFase.fin, currentFase.id);
+      
+      if (!msgContainer) return;
+      
+      if (disponibilidad.disponible) {
+        msgContainer.innerHTML = `<div class="equipo-status disponible"><span class="status-dot"></span> Persona disponible</div>`;
+      } else {
+        const conflicto = disponibilidad.conflicto;
+        const inicio = formatearFechaDDMM(conflicto.inicio);
+        const fin = formatearFechaDDMM(conflicto.fin);
+        if (conflicto.bloqueo) {
+          msgContainer.innerHTML = `
+            <div class="equipo-ocupado-msg">
+              🏖️ Esta persona está de <strong>${escapeHtml(conflicto.motivo)}</strong><br>
+              Período: ${inicio} → ${fin}
+            </div>
+          `;
+        } else {
+          msgContainer.innerHTML = `
+            <div class="equipo-ocupado-msg">
+              ⚠️ Esta persona está ocupada en:<br>
+              <strong>${conflicto.proyecto}</strong> (${conflicto.proyectoId})<br>
+              Fase: <strong>${conflicto.fase}</strong><br>
+              Período: ${inicio} → ${fin}
+            </div>
+          `;
+        }
+      }
+    }, 300);
+  }
+
+  function agregarEquipoSeleccionado() {
+    const select = document.getElementById('resEquipoSelect');
+    const equipo = select.value;
+    
+    if (!equipo) {
+      alert('Selecciona un equipo de la lista');
+      return;
+    }
+    
+    const disponibilidad = getEquipoDisponibilidad(equipo, currentFase.inicio, currentFase.fin, currentProject.id);
+    if (!disponibilidad.disponible) {
+      const conflicto = disponibilidad.conflicto;
+      const inicio = formatearFechaDDMM(conflicto.inicio);
+      const fin = formatearFechaDDMM(conflicto.fin);
+      if (!confirm(
+        `⚠️ El equipo "${equipo}" está ocupado:\n` +
+        `Proyecto: ${conflicto.proyecto}\n` +
+        `Fase: ${conflicto.fase}\n` +
+        `Período: ${inicio} → ${fin}\n\n` +
+        `¿Deseas agregarlo de todos modos?`
+      )) {
+        return;
+      }
+    }
+    
+    if (equiposSeleccionados.includes(equipo)) {
+      alert('Este equipo ya está seleccionado');
+      return;
+    }
+    
+    equiposSeleccionados.push(equipo);
+    renderEquiposSeleccionados();
+    select.value = '';
+    document.getElementById('equipoDisponibilidadMsg').innerHTML = '';
+  }
+
+  function removerEquipoSeleccionado(index) {
+    equiposSeleccionados.splice(index, 1);
+    renderEquiposSeleccionados();
+  }
+
+  function showAddResourceForm() {
+    if (!userCanEdit()) {
+      alert('No tienes permisos para agregar recursos');
+      return;
+    }
+    editingResourceId = null;
+    equiposSeleccionados = [];
+    const form = document.getElementById('resourceForm');
+    if (form) {
+      form.classList.add('active');
+      document.getElementById('resNombre').innerHTML = getPersonalSelectOptionsConDisponibilidad('', currentFase.inicio, currentFase.fin, currentFase.id, currentProject.id);
+      document.getElementById('resCertificacion').value = '';
+      document.getElementById('resTecnica').value = '';
+      document.getElementById('resHoras').value = '';
+      document.getElementById('resInicio').value = '';
+      document.getElementById('resFin').value = '';
+      document.getElementById('resEquipoSelect').value = '';
+      document.getElementById('resEquipoFaseSelect').value = '';
+      document.getElementById('resEquipoFaseInicio').value = '';
+      document.getElementById('resEquipoFaseFin').value = '';
+      document.getElementById('equipoDisponibilidadMsg').innerHTML = '';
+      document.getElementById('personaDisponibilidadMsg').innerHTML = '';
+    }
+    renderEquiposSeleccionados();
+    const btn = document.querySelector('.add-resource-btn');
+    if (btn) btn.style.display = 'none';
+  }
+
+  function editResource(index) {
+    if (!userCanEdit()) {
+      alert('No tienes permisos para editar recursos');
+      return;
+    }
+    const recurso = currentFase.recursos[index];
+    editingResourceId = index;
+    equiposSeleccionados = recurso.equipos ? [...recurso.equipos] : [];
+
+    const form = document.getElementById('resourceForm');
+    if (form) {
+      form.classList.add('active');
+      document.getElementById('resNombre').innerHTML = getPersonalSelectOptionsConDisponibilidad(recurso.nombre || '', currentFase.inicio, currentFase.fin, currentFase.id, currentProject.id);
+      document.getElementById('resCertificacion').value = recurso.certificacion || '';
+      document.getElementById('resTecnica').value = recurso.tecnica || '';
+      document.getElementById('resHoras').value = recurso.horas || '';
+      document.getElementById('resInicio').value = recurso.inicio || '';
+      document.getElementById('resFin').value = recurso.fin || '';
+      document.getElementById('resEquipoSelect').value = '';
+      document.getElementById('resEquipoFaseSelect').value = '';
+      document.getElementById('resEquipoFaseInicio').value = '';
+      document.getElementById('resEquipoFaseFin').value = '';
+      document.getElementById('equipoDisponibilidadMsg').innerHTML = '';
+      document.getElementById('personaDisponibilidadMsg').innerHTML = '';
+    }
+    renderEquiposSeleccionados();
+    const btn = document.querySelector('.add-resource-btn');
+    if (btn) btn.style.display = 'none';
+  }
+
+  function hideResourceForm() {
+    const form = document.getElementById('resourceForm');
+    if (form) form.classList.remove('active');
+    const btn = document.querySelector('.add-resource-btn');
+    if (btn) btn.style.display = 'block';
+    editingResourceId = null;
+    equiposSeleccionados = [];
+  }
+
+  // ==============================================================
+  // saveResource y deleteResource
+  // ==============================================================
+  async function saveResource() {
+    if (!userCanEdit()) {
+      alert('No tienes permisos para guardar cambios');
+      return;
+    }
+    const nombre = document.getElementById('resNombre').value.trim();
+    const certificacion = document.getElementById('resCertificacion').value.trim();
+    const tecnica = document.getElementById('resTecnica').value.trim();
+    const horas = parseInt(document.getElementById('resHoras').value) || 0;
+    const resInicio = document.getElementById('resInicio').value || '';
+    const resFin = document.getElementById('resFin').value || '';
+
+    if ((resInicio && !resFin) || (!resInicio && resFin)) {
+      alert('Si defines una fecha de inicio o fin para el recurso, debes definir ambas');
+      return;
+    }
+    if (resInicio && resFin && parseFechaLocal(resInicio) > parseFechaLocal(resFin)) {
+      alert('La fecha de inicio del recurso no puede ser posterior a la de fin');
+      return;
+    }
+    if (resInicio && parseFechaLocal(resInicio) < parseFechaLocal(currentFase.inicio)) {
+      alert('La fecha de inicio del recurso no puede ser anterior a la de la fase');
+      return;
+    }
+    if (resFin && parseFechaLocal(resFin) > parseFechaLocal(currentFase.fin)) {
+      alert('La fecha de fin del recurso no puede ser posterior a la de la fase');
+      return;
+    }
+
+    if (!nombre) {
+      alert('Selecciona una persona de la lista');
+      return;
+    }
+
+    const checkInicio = resInicio || currentFase.inicio;
+    const checkFin = resFin || currentFase.fin;
+
+    const disponibilidadPersona = getPersonaDisponibilidad(nombre, checkInicio, checkFin, currentFase.id, currentProject.id);
+    if (!disponibilidadPersona.disponible) {
+      const conflicto = disponibilidadPersona.conflicto;
+      const inicioC = formatearFechaDDMM(conflicto.inicio);
+      const finC = formatearFechaDDMM(conflicto.fin);
+      if (!confirm(
+        `⚠️ "${nombre}" está ocupado(a):\n` +
+        `Proyecto: ${conflicto.proyecto}\n` +
+        `Fase: ${conflicto.fase}\n` +
+        `Período: ${inicioC} → ${finC}\n\n` +
+        `¿Deseas asignarlo(a) de todos modos?`
+      )) {
+        return;
+      }
+    }
+
+    if (!currentFase.recursos) {
+      currentFase.recursos = [];
+    }
+
+    const resourceData = {
+      nombre, certificacion, tecnica,
+      equipos: [...equiposSeleccionados],
+      horas,
+      inicio: resInicio || undefined,
+      fin: resFin || undefined
+    };
+
+    if (editingResourceId !== null && editingResourceId !== undefined) {
+      const recurso = currentFase.recursos[editingResourceId];
+      recurso.nombre = nombre;
+      recurso.certificacion = certificacion;
+      recurso.tecnica = tecnica;
+      recurso.equipos = [...equiposSeleccionados];
+      recurso.horas = horas;
+      if (resInicio) recurso.inicio = resInicio; else delete recurso.inicio;
+      if (resFin) recurso.fin = resFin; else delete recurso.fin;
+    } else {
+      resourceData.id = resourceIdCounter++;
+      currentFase.recursos.push(resourceData);
+    }
+
+    limpiarCacheEquipos();
+    limpiarCachePersonas();
+    hideResourceForm();
+    renderResources();
+    saveToLocalStorage();
+    cambiosRecursosPendientes = true;
+    marcarDirty('asignaciones');
+    renderStatsBar();
+  }
+
+  async function deleteResource(index) {
+    if (!userCanEdit()) {
+      alert('No tienes permisos para eliminar recursos');
+      return;
+    }
+    if (!confirm('¿Eliminar este recurso?')) return;
+    currentFase.recursos.splice(index, 1);
+    limpiarCacheEquipos();
+    limpiarCachePersonas();
+    renderResources();
+    saveToLocalStorage();
+    cambiosRecursosPendientes = true;
+    marcarDirty('asignaciones');
+    renderStatsBar();
+  }
+
+  // ==============================================================
+  // saveProject y deleteProject
+  // ==============================================================
+  async function saveProject() {
+    if (!userCanEdit()) {
+      alert('No tienes permisos para guardar cambios');
+      return;
+    }
+
+    const projectId = document.getElementById('projectId').value.trim();
+    const nombre = document.getElementById('projectName').value.trim();
+    const cliente = document.getElementById('projectClient').value.trim();
+    const lider = document.getElementById('projectLider').value.trim().toUpperCase();
+    const estado = document.getElementById('projectEstado').value || 'Abierto';
+    const montoOC = document.getElementById('projectMontoOC').value.trim();
+    const contacto = document.getElementById('projectContacto').value.trim();
+    const correo = document.getElementById('projectCorreo').value.trim();
+    
+    if (!projectId || !nombre || !cliente) {
+      alert('Por favor complete todos los campos del proyecto');
+      return;
+    }
+    
+    const faseElements = document.querySelectorAll('.fase-item');
+    const fases = [];
+    
+    for (const el of faseElements) {
+      const id = el.id.replace('fase-', '');
+      const nombreFase = document.getElementById(`fase-${id}-nombre`).value;
+      const color = document.getElementById(`fase-${id}-color`).value;
+      const avance = parseInt(document.getElementById(`fase-${id}-avance`).value) || 0;
+      const inicio = document.getElementById(`fase-${id}-inicio`).value;
+      const fin = document.getElementById(`fase-${id}-fin`).value;
+      const persistIdEl = document.getElementById(`fase-${id}-persistid`);
+      const persistId = persistIdEl && persistIdEl.value ? persistIdEl.value : generarFaseId();
+      const montoInput = document.getElementById(`fase-${id}-monto`);
+      const monto = (nombreFase === 'Facturación' && montoInput && montoInput.value !== '')
+        ? parseFloat(montoInput.value) : null;
+      
+      if (!inicio || !fin) {
+        alert(`La fase "${nombreFase}" debe tener fecha de inicio y fin`);
+        return;
+      }
+      
+      fases.push({
+        id: persistId,
+        nombre: nombreFase,
+        color: color || '#2196F3',
+        avance: avance,
+        inicio: inicio,
+        fin: fin,
+        recursos: [],
+        comentario: '',
+        monto: monto,
+        equiposFase: []
+      });
+    }
+    
+    if (fases.length === 0) {
+      alert('Debe agregar al menos una fase');
+      return;
+    }
+    
+    const newProject = {
+      id: projectId,
+      nombre: nombre,
+      cliente: cliente,
+      lider: lider,
+      estado: estado,
+      montoOC: montoOC ? parseFloat(montoOC) : null,
+      contacto: contacto,
+      correo: correo,
+      fases: fases
+    };
+
+    if (editingProjectIndex >= 0) {
+      const oldProject = proyectos[editingProjectIndex];
+      newProject.fases.forEach((fase, idx) => {
+        const oldFase = oldProject.fases.find(f => f.id && f.id === fase.id) || oldProject.fases[idx];
+        if (oldFase && oldFase.recursos) {
+          fase.recursos = oldFase.recursos;
+        }
+        if (oldFase && oldFase.comentario) {
+          fase.comentario = oldFase.comentario;
+        }
+        if (oldFase && oldFase.equiposFase) {
+          fase.equiposFase = oldFase.equiposFase;
+        }
+      });
+    }
+
+    const conflictos = validarConflictosRecursosProyecto(newProject);
+    if (conflictos.length > 0) {
+      const lista = conflictos.map(c => {
+        const inicio = formatearFechaDDMM(c.conflicto.inicio);
+        const fin = formatearFechaDDMM(c.conflicto.fin);
+        const rangoRecurso = (c.recursoInicio && c.recursoFin) 
+          ? ` (asignado ${formatearFechaDDMM(c.recursoInicio)} → ${formatearFechaDDMM(c.recursoFin)})`
+          : '';
+        if (c.tipo === 'persona') {
+          if (c.conflicto.bloqueo) {
+            return `• ${c.nombre} en "${c.fase}"${rangoRecurso}: ${c.conflicto.motivo} (${inicio} → ${fin})`;
+          }
+          return `• ${c.nombre} en "${c.fase}"${rangoRecurso}: ocupado en "${c.conflicto.proyecto}" - ${c.conflicto.fase} (${inicio} → ${fin})`;
+        } else {
+          if (c.conflicto.bloqueo) {
+            return `• 🔧 ${c.nombre} (${c.recurso}) en "${c.fase}"${rangoRecurso}: ${c.conflicto.motivo} (${inicio} → ${fin})`;
+          }
+          return `• 🔧 ${c.nombre} (${c.recurso}) en "${c.fase}"${rangoRecurso}: ocupado en "${c.conflicto.proyecto}" - ${c.conflicto.fase} (${inicio} → ${fin})`;
+        }
+      }).join('\n');
+
+      alert(`❌ No se puede guardar el proyecto.\n\nLos siguientes recursos tienen conflictos de disponibilidad:\n\n${lista}\n\nPor favor ajusta las fechas o reasigna los recursos.`);
+      return;
+    }
+
+    if (editingProjectIndex >= 0) {
+      proyectos[editingProjectIndex] = newProject;
+    } else {
+      proyectos.push(newProject);
+    }
+    
+    ordenarProyectosPorID();
+    limpiarCacheEquipos();
+    limpiarCachePersonas();
+    saveToLocalStorage();
+    marcarDirty('proyectos', 'fases', 'asignaciones');
+    closeProjectModal();
+    renderAll();
+    renderStatsBar();
+    
+    await syncWithSheets();
+  }
+
+  async function deleteProject(index) {
+    if (!userCanEdit()) {
+      alert('No tienes permisos para eliminar proyectos');
+      return;
+    }
+    const proyecto = proyectos[index];
+    if (!confirm(`¿Eliminar "${proyecto.nombre}"?`)) return;
+    
+    proyectos.splice(index, 1);
+    limpiarCacheEquipos();
+    limpiarCachePersonas();
+    saveToLocalStorage();
+    marcarDirty('proyectos', 'fases', 'asignaciones');
+    renderAll();
+    renderStatsBar();
+    
+    await syncWithSheets();
+  }
+
+  // ==============================================================
+  // MODALES DE INSPECTORES Y TARJETA DE PROYECTO
+  // ==============================================================
+  function openInspectoresModal(tipo) {
+    const modal = document.getElementById('inspectoresModal');
+    const title = document.getElementById('inspectoresModalTitle');
+    const content = document.getElementById('inspectoresModalContent');
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const inspectores = personalStock.filter(p => {
+      if ((p.estado || 'Activo') !== 'Activo') return false;
+      const t = (p.tipo || '').trim();
+      return t === 'Campo' || t === 'HSE';
+    }).map(p => {
+      const ocupado = proyectos.some(proyecto => {
+        if (!proyecto || !proyecto.fases) return false;
+        return proyecto.fases.some(fase => {
+          if (!fase || !fase.recursos) return false;
+          return fase.recursos.some(recurso => {
+            if (!recurso || recurso.nombre !== p.nombre) return false;
+            const estado = getEstadoRecursoEnFecha(p.nombre, fase.inicio, fase.fin);
+            if (!estado.contar) return false;
+            const ini = parseFechaLocal(recurso.inicio || fase.inicio);
+            const fin = parseFechaLocal(recurso.fin || fase.fin);
+            if (isNaN(ini) || isNaN(fin)) return false;
+            return hoy >= ini && hoy <= fin;
+          });
+        });
+      });
+      return { ...p, ocupado };
+    });
+
+    let filtrados = inspectores;
+    let titulo = '👷 Inspectores';
+
+    if (tipo === 'ocupados') {
+      filtrados = inspectores.filter(i => i.ocupado);
+      titulo = '🔴 Inspectores Ocupados Hoy';
+    } else if (tipo === 'libres') {
+      filtrados = inspectores.filter(i => !i.ocupado);
+      titulo = '🟢 Inspectores Libres Hoy';
+    } else {
+      titulo = '👷 Todos los Inspectores';
+    }
+
+    title.textContent = titulo + ` (${filtrados.length})`;
+
+    if (filtrados.length === 0) {
+      content.innerHTML = `
+        <div style="text-align:center; color:#64748b; padding:24px; font-size:0.8rem;">
+          No hay inspectores en esta categoría.
+        </div>
+      `;
+    } else {
+      let html = '';
+      filtrados.forEach(p => {
+        const estadoClass = p.ocupado ? 'ocupado' : 'libre';
+        const estadoText = p.ocupado ? 'Ocupado' : 'Libre';
+        const iniciales = getIniciales(p.nombre);
+
+        let proyectoInfo = '';
+        if (p.ocupado) {
+          for (const proyecto of proyectos) {
+            if (!proyecto || !proyecto.fases) continue;
+            for (const fase of proyecto.fases) {
+              if (!fase || !fase.recursos) continue;
+              for (const recurso of fase.recursos) {
+                if (!recurso || recurso.nombre !== p.nombre) continue;
+                const estado = getEstadoRecursoEnFecha(p.nombre, fase.inicio, fase.fin);
+                if (!estado.contar) continue;
+                const ini = parseFechaLocal(recurso.inicio || fase.inicio);
+                const fin = parseFechaLocal(recurso.fin || fase.fin);
+                if (isNaN(ini) || isNaN(fin)) continue;
+                if (hoy >= ini && hoy <= fin) {
+                  proyectoInfo = `<div class="inspector-detalle-proyecto">${escapeHtml(proyecto.id)} — ${escapeHtml(fase.nombre)}</div>`;
+                  break;
+                }
+              }
+              if (proyectoInfo) break;
+            }
+            if (proyectoInfo) break;
+          }
+        }
+
+        html += `
+          <div class="inspector-detalle-item">
+            <div class="inspector-detalle-avatar">${escapeHtml(iniciales)}</div>
+            <div class="inspector-detalle-info">
+              <div class="inspector-detalle-name">${escapeHtml(p.nombre)}</div>
+              <div class="inspector-detalle-cargo">${escapeHtml(p.cargo || 'Sin cargo')} · ${escapeHtml(p.certificacion || 'Sin certificación')}</div>
+              ${proyectoInfo}
+            </div>
+            <span class="inspector-detalle-estado ${estadoClass}">${estadoText}</span>
+          </div>
+        `;
+      });
+      content.innerHTML = html;
+    }
+
+    modal.classList.add('active');
+  }
+
+  function closeInspectoresModal() {
+    document.getElementById('inspectoresModal').classList.remove('active');
+  }
+
+  function openTarjetaProyecto(proyectoIndex) {
+    const proyecto = proyectos[proyectoIndex];
+    if (!proyecto) return;
+
+    const modal = document.getElementById('tarjetaProyectoModal');
+    const content = document.getElementById('tarjetaProyectoContent');
+
+    document.getElementById('tarjetaProyectoTitle').textContent = proyecto.id + ' — ' + proyecto.nombre;
+
+    let estadoClass = 'activo';
+    let estadoText = 'Abierto';
+    if ((proyecto.estado || 'Abierto') === 'Cerrado') {
+      estadoClass = 'caducado';
+      estadoText = 'Cerrado';
+    } else if ((proyecto.estado || 'Abierto') === 'Stand by') {
+      estadoClass = 'caducado';
+      estadoText = 'Stand by';
+    }
+    
+    const montoFormateado = proyecto.montoOC 
+      ? '$' + proyecto.montoOC.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' USD'
+      : 'No registrado';
+
+    content.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="personal-card" style="margin-bottom:0;">
+          <div class="personal-card-header">
+            <div class="personal-card-name">${escapeHtml(proyecto.id)} — ${escapeHtml(proyecto.nombre)}</div>
+            <span class="personal-card-badge ${estadoClass}">${estadoText}</span>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <div class="personal-card" style="margin-bottom:0; padding:10px 12px;">
+            <div style="font-size:0.55rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:4px;">Cliente</div>
+            <div style="font-size:0.8rem; font-weight:600; color:#f1f5f9;">${escapeHtml(proyecto.cliente || '—')}</div>
+          </div>
+          <div class="personal-card" style="margin-bottom:0; padding:10px 12px;">
+            <div style="font-size:0.55rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:4px;">Lider</div>
+            <div style="font-size:0.8rem; font-weight:600; color:#f1f5f9;">${escapeHtml(proyecto.lider || '—')}</div>
+          </div>
+        </div>
+
+        <div class="personal-card" style="margin-bottom:0; padding:10px 12px;">
+          <div style="font-size:0.55rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:4px;">Orden de Compra / Servicio</div>
+          <div style="font-size:0.9rem; font-weight:700; color:${proyecto.montoOC ? '#4ade80' : '#94a3b8'};">${montoFormateado}</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <div class="personal-card" style="margin-bottom:0; padding:10px 12px;">
+            <div style="font-size:0.55rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:4px;">Contacto</div>
+            <div style="font-size:0.8rem; font-weight:600; color:#f1f5f9;">${escapeHtml(proyecto.contacto || '—')}</div>
+          </div>
+          <div class="personal-card" style="margin-bottom:0; padding:10px 12px;">
+            <div style="font-size:0.55rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:4px;">Correo</div>
+            <div style="font-size:0.75rem; font-weight:500; color:#94a3b8; word-break:break-all;">${escapeHtml(proyecto.correo || '—')}</div>
+          </div>
+        </div>
+
+        <div class="personal-card" style="margin-bottom:0; padding:10px 12px;">
+          <div style="font-size:0.55rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:6px;">Fases (${proyecto.fases ? proyecto.fases.length : 0})</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            ${(proyecto.fases || []).map(f => `
+              <div style="display:flex; align-items:center; gap:8px; font-size:0.7rem; color:#cbd5e1;">
+                <span style="width:8px; height:8px; border-radius:50%; background:${f.color || '#2196F3'}; flex-shrink:0;"></span>
+                <span style="flex:1;">${escapeHtml(f.nombre)}</span>
+                <span style="color:#64748b; font-size:0.6rem;">${formatearFechaDDMM(f.inicio)} → ${formatearFechaDDMM(f.fin)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+
+    modal.classList.add('active');
+  }
+
+  function closeTarjetaProyectoModal() {
+    document.getElementById('tarjetaProyectoModal').classList.remove('active');
+  }
+
+  // ==============================================================
+  // SINCRONIZACIÓN DE SCROLL
+  // ==============================================================
+  function syncScroll() {
+    const bodyScroll = document.getElementById("bodyScroll");
+    const headerScroll = document.getElementById("headerScroll");
+    
+    if (!bodyScroll || !headerScroll) {
+      console.warn('⚠️ No se encontraron los elementos de scroll');
+      return;
+    }
+    
+    const ganttWrapper = document.getElementById("ganttWrapper");
+    if (ganttWrapper) {
+      const wrapperWidth = ganttWrapper.scrollWidth || ganttWrapper.offsetWidth;
+      const timelineInner = document.getElementById("timelineInner");
+      if (timelineInner) {
+        timelineInner.style.minWidth = Math.max(wrapperWidth, 280 + (DIAS_TOTALES + 1) * ANCHO_DIA) + 'px';
+      }
+    }
+    
+    function sincronizarScroll() {
+      headerScroll.scrollLeft = bodyScroll.scrollLeft;
+      hideResourcesTooltip();
+    }
+    
+    bodyScroll.removeEventListener('scroll', sincronizarScroll);
+    bodyScroll.addEventListener('scroll', sincronizarScroll);
+    
+    headerScroll.addEventListener('scroll', function() {
+      bodyScroll.scrollLeft = headerScroll.scrollLeft;
+    });
+    
+    setTimeout(() => {
+      headerScroll.scrollLeft = bodyScroll.scrollLeft;
+      console.log('✅ Sincronización de scroll activada');
+    }, 200);
+  }
+
+  function scrollToToday() {
+    if (!inicioGlobal || !finGlobal) return;
+    
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const inicioMid = new Date(inicioGlobal);
+    inicioMid.setHours(0, 0, 0, 0);
+    
+    let offset = Math.round((hoy - inicioMid) / 86400000);
+    
+    if (offset >= 0 && offset <= DIAS_TOTALES) {
+      const scrollX = (offset * ANCHO_DIA) + 280 - window.innerWidth / 2.5;
+      const bodyScroll = document.getElementById("bodyScroll");
+      const headerScroll = document.getElementById("headerScroll");
+      
+      if (bodyScroll && scrollX > 0) {
+        setTimeout(() => {
+          bodyScroll.scrollLeft = Math.max(0, scrollX);
+          if (headerScroll) headerScroll.scrollLeft = Math.max(0, scrollX);
+          console.log('📅 Scroll al día de hoy: ' + scrollX);
+        }, 400);
+      }
+    }
+  }
+
   // ==============================================================
   // INICIALIZAR
   // ==============================================================
-  // ... (código de inicialización)
+  function initDashboard() {
+    renderAll();
+    
+    setTimeout(() => { syncScroll(); }, 300);
+    setTimeout(() => { scrollToToday(); }, 500);
+
+    window.addEventListener('resize', () => {
+      const old = document.querySelector(".today-line");
+      if (old) old.remove();
+      renderTodayLine();
+      hideResourcesTooltip();
+      setTimeout(() => {
+        const bodyScroll = document.getElementById("bodyScroll");
+        const headerScroll = document.getElementById("headerScroll");
+        if (bodyScroll && headerScroll) {
+          headerScroll.scrollLeft = bodyScroll.scrollLeft;
+        }
+      }, 200);
+    });
+  }
+
+  // ==============================================================
+  // EVENTOS
+  // ==============================================================
+  document.getElementById('closePanel').addEventListener('click', closeResourcesPanel);
+  document.getElementById('panelOverlay').addEventListener('click', closeResourcesPanel);
   
-  // NOTA: El código completo continúa, pero por razones de longitud,
-  // las funciones que no han cambiado no se repiten aquí.
-  // La versión completa se entrega en el archivo adjunto.
+  window.addEventListener('beforeunload', function(e) {
+    if (cambiosRecursosPendientes) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+  
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeResourcesPanel();
+      hideResourcesTooltip();
+      closeProjectModal();
+      closeEquiposModal();
+      closePersonalModal();
+      closeConsultaModal();
+      closeInspectoresModal();
+      closeFiltroModal();
+      closeTarjetaProyectoModal();
+    }
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (tooltip.classList.contains('show')) {
+      const target = e.target;
+      if (!target.closest('.phase-block') && !target.closest('.resources-tooltip')) {
+        programarOcultarTooltip();
+      } else if (tooltipHideTimeout) {
+        clearTimeout(tooltipHideTimeout);
+        tooltipHideTimeout = null;
+      }
+    }
+  });
+
+  document.getElementById('projectModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeProjectModal();
+    }
+  });
+
+  document.getElementById('equiposModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeEquiposModal();
+    }
+  });
+
+  document.getElementById('personalModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closePersonalModal();
+    }
+  });
+
+  document.getElementById('consultaModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeConsultaModal();
+    }
+  });
+
+  document.getElementById('inspectoresModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeInspectoresModal();
+    }
+  });
+
+  document.getElementById('filtroModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeFiltroModal();
+    }
+  });
+
+  document.getElementById('tarjetaProyectoModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeTarjetaProyectoModal();
+    }
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !document.getElementById('loginContainer').classList.contains('hidden')) {
+      handleLogin();
+    }
+  });
+
+  // ==============================================================
+  // INICIALIZAR APLICACIÓN
+  // ==============================================================
+  function cargarEquiposStock() {
+    try {
+      const data = localStorage.getItem('equiposStock');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && parsed.length > 0) {
+          equiposStock = parsed;
+          ordenarEquiposAlfabeticamente();
+        }
+      }
+    } catch (e) {}
+  }
+
+  function cargarPersonalStock() {
+    try {
+      const data = localStorage.getItem('personalStock');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && parsed.length > 0) {
+          personalStock = parsed;
+          ordenarPersonalAlfabeticamente();
+        }
+      }
+    } catch (e) {}
+  }
+
+  function cargarBloqueosEquipos() {
+    try {
+      const data = localStorage.getItem('bloqueosEquipos');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && parsed.length > 0) bloqueosEquipos = parsed;
+      }
+    } catch (e) {}
+  }
+
+  function cargarBloqueosPersonal() {
+    try {
+      const data = localStorage.getItem('bloqueosPersonal');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && parsed.length > 0) bloqueosPersonal = parsed;
+      }
+    } catch (e) {}
+  }
+
+  // Cargar datos
+  cargarEquiposStock();
+  cargarPersonalStock();
+  cargarBloqueosEquipos();
+  cargarBloqueosPersonal();
+  loadFromLocalStorage();
+  ordenarProyectosPorID();
+
+  // Iniciar
+  if (!checkSession()) {
+    selectProfile('viewer');
+  }
 </script>
 </body>
 </html>

@@ -937,12 +937,6 @@
       opacity: 0.6;
     }
 
-    .tooltip-resource .res-equipo-tag.ingreso-futuro {
-      border-color: #fb923c;
-      color: #fb923c;
-      background: rgba(251, 146, 60, 0.1);
-    }
-
     .tooltip-resource .res-tecnica {
       font-size: 0.55rem;
       color: #7e8ba0;
@@ -1189,12 +1183,6 @@
       opacity: 0.6;
     }
 
-    .resource-item .resource-equipo-tag.ingreso-futuro {
-      border-color: #fb923c;
-      color: #fb923c;
-      background: rgba(251, 146, 60, 0.08);
-    }
-
     .resource-item .resource-actions {
       display: flex;
       gap: 4px;
@@ -1400,10 +1388,11 @@
       background: rgba(34, 197, 94, 0.1);
     }
 
-    .equipo-tag.ingreso-futuro {
-      border-color: #fb923c;
-      color: #fb923c;
-      background: rgba(251, 146, 60, 0.1);
+    .equipo-tag.caducado {
+      border-color: #f87171;
+      color: #f87171;
+      background: rgba(239, 68, 68, 0.08);
+      opacity: 0.6;
     }
 
     /* Sección de equipos asignados a fase */
@@ -2610,10 +2599,7 @@
   </div>
 </div>
 
-
   <!-- DASHBOARD DE OCUPACIÓN -->
-  
-
   <div class="main-container" id="mainContainer" style="display:none;">
 <div class="dashboards-wrapper">
     <div class="stats-bar" id="statsBar">
@@ -2693,7 +2679,6 @@
   <div id="panelComentarioSection" style="padding: 0 0 12px;"></div>
   <div id="panelContent"></div>
 </div>
-
 
 <!-- MODAL TARJETA DE PROYECTO -->
 <div class="modal-overlay" id="tarjetaProyectoModal">
@@ -2825,8 +2810,6 @@
     </div>
   </div>
 </div>
-
-
 
 <!-- MODAL DE CONSULTA DE DISPONIBILIDAD (solo Visualizador) -->
 <div class="modal-overlay" id="consultaModal">
@@ -4338,6 +4321,66 @@
   }
 
   // ==============================================================
+  // getEstadoRecursoEnFecha - CORREGIDO
+  // SOLO muestra fecha de caducidad, NO muestra fecha de ingreso
+  // ==============================================================
+  function getEstadoRecursoEnFecha(nombrePersona, fechaInicioFase, fechaFinFase) {
+    const nombreBuscar = String(nombrePersona || '').trim();
+    const persona = personalStock.find(p => {
+      const nombreStock = String(p.nombre || '').trim();
+      return nombreStock.toLowerCase() === nombreBuscar.toLowerCase();
+    });
+
+    if (!persona) {
+      return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
+    }
+
+    const faseInicio = parseFechaLocal(fechaInicioFase);
+    const faseFin = parseFechaLocal(fechaFinFase);
+
+    if (isNaN(faseInicio) || isNaN(faseFin)) {
+      return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
+    }
+
+    // Verificar si la persona ya ingresó (fecha de inicio <= inicio de fase)
+    // Si no ha ingresado aún, NO se cuenta y NO se muestra en el tooltip
+    if (persona.fechaInicio) {
+      const fechaInicioContrato = parseFechaLocal(persona.fechaInicio);
+      if (!isNaN(fechaInicioContrato)) {
+        // Si la fecha de inicio es posterior al inicio de la fase, NO cuenta
+        if (fechaInicioContrato > faseInicio) {
+          return { 
+            activo: false, 
+            estado: 'No ha ingresado', 
+            clase: 'no-ingresado', 
+            texto: '', 
+            contar: false 
+          };
+        }
+      }
+    }
+
+    // Verificar si está caducado - SOLO ESTO SE MUESTRA
+    if ((persona.estado || 'Activo') !== 'Activo' && persona.fechaCaducidad) {
+      const fechaCad = parseFechaLocal(persona.fechaCaducidad);
+      if (!isNaN(fechaCad)) {
+        // Si la fase comienza después de la caducidad O la fase contiene la fecha de caducidad
+        if (faseInicio > fechaCad || (faseInicio <= fechaCad && faseFin >= fechaCad)) {
+          return { 
+            activo: false, 
+            estado: 'Caducado', 
+            clase: 'caducado', 
+            texto: `Caducó ${formatearFechaDDMM(persona.fechaCaducidad)}`, 
+            contar: false 
+          };
+        }
+      }
+    }
+
+    return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
+  }
+
+  // ==============================================================
   // GESTIÓN DE PERSONAL
   // ==============================================================
   function openPersonalModal() {
@@ -5117,69 +5160,6 @@
   }
 
   // ==============================================================
-  // getEstadoRecursoEnFecha - CORREGIDO
-  // ==============================================================
-  function getEstadoRecursoEnFecha(nombrePersona, fechaInicioFase, fechaFinFase) {
-    const nombreBuscar = String(nombrePersona || '').trim();
-    const persona = personalStock.find(p => {
-      const nombreStock = String(p.nombre || '').trim();
-      return nombreStock.toLowerCase() === nombreBuscar.toLowerCase();
-    });
-
-    if (!persona) {
-      return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
-    }
-
-    const faseInicio = parseFechaLocal(fechaInicioFase);
-    const faseFin = parseFechaLocal(fechaFinFase);
-
-    if (isNaN(faseInicio) || isNaN(faseFin)) {
-      return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
-    }
-
-    if (persona.fechaInicio) {
-      const fechaInicioContrato = parseFechaLocal(persona.fechaInicio);
-      if (!isNaN(fechaInicioContrato)) {
-        if (fechaInicioContrato > faseInicio && fechaInicioContrato <= faseFin) {
-          return { 
-            activo: true, 
-            estado: 'Ingreso futuro', 
-            clase: 'ingreso-futuro', 
-            texto: `Ingresa ${formatearFechaDDMM(persona.fechaInicio)}`, 
-            contar: true
-          };
-        }
-        if (fechaInicioContrato > faseFin) {
-          return { 
-            activo: false, 
-            estado: 'Ingreso posterior', 
-            clase: 'ingreso-futuro', 
-            texto: `Ingresa ${formatearFechaDDMM(persona.fechaInicio)}`, 
-            contar: false 
-          };
-        }
-      }
-    }
-
-    if ((persona.estado || 'Activo') !== 'Activo' && persona.fechaCaducidad) {
-      const fechaCad = parseFechaLocal(persona.fechaCaducidad);
-      if (!isNaN(fechaCad)) {
-        if (faseInicio > fechaCad || (faseInicio <= fechaCad && faseFin >= fechaCad)) {
-          return { 
-            activo: false, 
-            estado: 'Caducado', 
-            clase: 'caducado', 
-            texto: `Caducó ${formatearFechaDDMM(persona.fechaCaducidad)}`, 
-            contar: false 
-          };
-        }
-      }
-    }
-
-    return { activo: true, estado: 'Activo', clase: '', texto: '', contar: true };
-  }
-
-  // ==============================================================
   // FUNCIONES DE RENDERIZADO
   // ==============================================================
   function escapeHtml(str) {
@@ -5584,7 +5564,7 @@
   }
 
   // ==============================================================
-  // TOOLTIP DE RECURSOS
+  // TOOLTIP DE RECURSOS - CORREGIDO: SOLO MUESTRA ACTIVOS Y CADUCADOS
   // ==============================================================
   const tooltip = document.getElementById('resourcesTooltip');
   let tooltipHideTimeout = null;
@@ -5598,15 +5578,21 @@
     const recursos = fase.recursos || [];
     const content = document.getElementById('tooltipContent');
     
-    const recursosFiltrados = recursos.map(r => ({
-      ...r,
-      _estado: getEstadoRecursoEnFecha(r.nombre, fase.inicio, fase.fin)
-    }));
-    const recursosActivos = recursosFiltrados.filter(r => r._estado.contar);
+    // Filtrar SOLO recursos que están activos o caducados
+    // Los que no han ingresado (contar: false sin texto) se ocultan completamente
+    const recursosFiltrados = recursos.filter(r => {
+      const estado = getEstadoRecursoEnFecha(r.nombre, fase.inicio, fase.fin);
+      return estado.contar || (estado.estado === 'Caducado');
+    });
+    
+    const recursosActivos = recursosFiltrados.filter(r => {
+      const estado = getEstadoRecursoEnFecha(r.nombre, fase.inicio, fase.fin);
+      return estado.contar;
+    });
 
     document.getElementById('tooltipTitle').textContent = fase.nombre;
-    document.getElementById('tooltipBadge').textContent = recursosActivos.length + (recursosFiltrados.length > recursosActivos.length ? `+${recursosFiltrados.length - recursosActivos.length}` : '');
-    document.getElementById('tooltipBadge').title = recursosActivos.length + ' activos' + (recursosFiltrados.length > recursosActivos.length ? `, ${recursosFiltrados.length - recursosActivos.length} no activos` : '');
+    document.getElementById('tooltipBadge').textContent = recursosActivos.length;
+    document.getElementById('tooltipBadge').title = recursosActivos.length + ' activos' + (recursosFiltrados.length > recursosActivos.length ? `, ${recursosFiltrados.length - recursosActivos.length} caducados` : '');
     
     let html = '';
     
@@ -5630,13 +5616,14 @@
       html += `<div class="tooltip-comentario">💬 ${escapeHtml(fase.comentario)}</div>`;
     }
     
-    if (recursos.length === 0 && (!fase.equiposFase || fase.equiposFase.length === 0)) {
+    if (recursosFiltrados.length === 0 && (!fase.equiposFase || fase.equiposFase.length === 0)) {
       if (fase.nombre !== 'Facturación') {
-        html += `<div class="tooltip-empty">No hay recursos asignados</div>`;
+        html += `<div class="tooltip-empty">No hay recursos activos</div>`;
       }
     } else {
-      recursos.forEach((res) => {
+      recursosFiltrados.forEach((res) => {
         const inicial = res.nombre ? res.nombre.charAt(0).toUpperCase() : '?';
+        const estado = getEstadoRecursoEnFecha(res.nombre, fase.inicio, fase.fin);
         
         const equiposHtml = (res.equipos || []).map(eq => {
           const disponibilidad = getEquipoDisponibilidad(eq, fase.inicio, fase.fin, proyecto.id);
@@ -5668,15 +5655,15 @@
           ? `📅 ${formatearFechaDDMM(res.inicio)}→${formatearFechaDDMM(res.fin)} · `
           : '';
 
-        const estado = getEstadoRecursoEnFecha(res.nombre, fase.inicio, fase.fin);
-        const estadoText = estado.texto ? ` ${estado.texto}` : '';
+        // SOLO mostrar texto de caducado, NO de ingreso
+        const estadoText = estado.estado === 'Caducado' ? ` ${estado.texto}` : '';
         const opacityStyle = estado.contar ? '' : 'opacity:0.5;';
 
         html += `
           <div class="tooltip-resource" style="${opacityStyle}">
             <div class="res-avatar">${inicial}</div>
             <div class="res-info">
-              <div class="res-name">${escapeHtml(res.nombre)}<span style="font-size:0.5rem; color:${estado.estado === 'Caducado' ? '#f87171' : '#fb923c'}; margin-left:4px;">${estadoText}</span></div>
+              <div class="res-name">${escapeHtml(res.nombre)}<span style="font-size:0.5rem; color:#f87171; margin-left:4px;">${estadoText}</span></div>
               <div class="res-equipos">${equiposHtml}</div>
               <div class="res-tecnica">${fechasTooltip}${escapeHtml(res.tecnica || 'Técnica no especificada')} · ${res.horas || 0}h</div>
             </div>
@@ -5858,7 +5845,13 @@
     const recursos = currentFase.recursos || [];
     const canEdit = userCanEdit();
 
-    const recursosConEstado = recursos.map((r, idx) => ({
+    // Filtrar recursos que ya han ingresado (no mostrar los que aún no han ingresado)
+    const recursosFiltrados = recursos.filter(r => {
+      const estado = getEstadoRecursoEnFecha(r.nombre, currentFase.inicio, currentFase.fin);
+      return estado.contar || estado.estado === 'Caducado';
+    });
+
+    const recursosConEstado = recursosFiltrados.map((r, idx) => ({
       ...r,
       _index: idx,
       _estado: getEstadoRecursoEnFecha(r.nombre, currentFase.inicio, currentFase.fin)
@@ -5867,18 +5860,18 @@
 
     let html = '';
 
-    if (recursos.length > 0 || (currentFase.equiposFase && currentFase.equiposFase.length > 0)) {
+    if (recursosFiltrados.length > 0 || (currentFase.equiposFase && currentFase.equiposFase.length > 0)) {
       const totalEquiposFase = currentFase.equiposFase ? currentFase.equiposFase.length : 0;
       html += `<div style="font-size:0.6rem; color:#64748b; margin-bottom:8px; padding:4px 8px; background:rgba(255,255,255,0.02); border-radius:6px; border:1px solid rgba(45,58,94,0.3);">
-        Recursos: <strong style="color:#e2e8f0;">${recursosActivos.length}</strong> activos${recursos.length > recursosActivos.length ? ` · <span style="color:#f87171;">${recursos.length - recursosActivos.length} no activo${recursos.length - recursosActivos.length > 1 ? 's' : ''}</span>` : ''}
+        Recursos: <strong style="color:#e2e8f0;">${recursosActivos.length}</strong> activos${recursosFiltrados.length > recursosActivos.length ? ` · <span style="color:#f87171;">${recursosFiltrados.length - recursosActivos.length} caducado${recursosFiltrados.length - recursosActivos.length > 1 ? 's' : ''}</span>` : ''}
         ${totalEquiposFase > 0 ? ` · 📦 ${totalEquiposFase} equipo${totalEquiposFase > 1 ? 's' : ''} en fase` : ''}
       </div>`;
     }
 
-    if (recursos.length === 0 && (!currentFase.equiposFase || currentFase.equiposFase.length === 0)) {
+    if (recursosFiltrados.length === 0 && (!currentFase.equiposFase || currentFase.equiposFase.length === 0)) {
       html += `
         <div class="empty-state">
-          <p>No hay recursos asignados</p>
+          <p>No hay recursos activos asignados</p>
           <p style="font-size:0.6rem; margin-top:3px;">${canEdit ? 'Agrega personal, equipos y técnicas' : 'Solo lectura'}</p>
         </div>
       `;
@@ -5887,6 +5880,8 @@
 
       recursosConEstado.forEach((recurso) => {
         const estado = recurso._estado;
+        // SOLO mostrar texto de caducado, NO de ingreso
+        const textoMostrar = estado.estado === 'Caducado' ? estado.texto : '';
         const equiposHtml = (recurso.equipos || []).map(eq => {
           const disponibilidad = getEquipoDisponibilidad(eq, currentFase.inicio, currentFase.fin, currentProject.id);
           let clase = '';
@@ -5918,8 +5913,8 @@
           ? `<span style="color:#4ade80;">${formatearFechaDDMM(recurso.inicio)} → ${formatearFechaDDMM(recurso.fin)}</span> · `
           : '';
 
-        const estadoBadge = estado.texto 
-          ? `<span style="font-size:0.5rem; padding:1px 5px; border-radius:8px; margin-left:6px; font-weight:600; ${estado.estado === 'Caducado' ? 'background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3);' : 'background:rgba(251,146,60,0.15); color:#fb923c; border:1px solid rgba(251,146,60,0.3);'}">${estado.texto}</span>` 
+        const estadoBadge = textoMostrar 
+          ? `<span style="font-size:0.5rem; padding:1px 5px; border-radius:8px; margin-left:6px; font-weight:600; background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3);">${textoMostrar}</span>` 
           : '';
         const opacityStyle = estado.contar ? '' : 'opacity:0.5;';
 
@@ -6112,7 +6107,6 @@
       return;
     }
     
-    // Validar disponibilidad del equipo
     const eqInicio = inicio || currentFase.inicio;
     const eqFin = fin || currentFase.fin;
     const disponibilidad = getEquipoDisponibilidad(equipo, eqInicio, eqFin, currentProject.id);
